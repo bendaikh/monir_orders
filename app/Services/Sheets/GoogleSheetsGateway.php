@@ -25,4 +25,12 @@ interface GoogleSheetsGateway
      * @return array{updatedRange: string, updatedRows: int}
      */
     public function appendRow(string $spreadsheetId, string $worksheet, array $row): array;
+
+    /**
+     * Append several rows in one call (same semantics as appendRow).
+     *
+     * @param  array<int, array<int, string|int|float|null>>  $rows
+     * @return array{updatedRange: string, updatedRows: int}
+     */
+    public function appendRows(string $spreadsheetId, string $worksheet, array $rows): array;
 }

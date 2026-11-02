@@ -12,11 +12,12 @@
         <x-demo-banner />
     @endif
 
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <x-stat label="Commandes importées" :value="$summary['total']" tone="slate"><x-icon name="orders" /></x-stat>
         <x-stat label="En attente" :value="$summary['pending']" tone="orange"><x-icon name="alert" /></x-stat>
         <x-stat label="Validées" :value="$summary['validated'] + $summary['transfer_pending'] + $summary['transferred'] + $summary['failed']" tone="blue"><x-icon name="check" /></x-stat>
         <x-stat label="Rejetées" :value="$summary['rejected']" tone="red"><x-icon name="close" /></x-stat>
+        <x-stat label="Doublons (non envoyés)" :value="$summary['duplicates']" tone="slate"><x-icon name="alert" /></x-stat>
         <x-stat label="Erreurs de transfert" :value="$summary['failed']" tone="rose"><x-icon name="alert" /></x-stat>
     </div>
 

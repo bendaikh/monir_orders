@@ -32,6 +32,9 @@ class Order extends Model
         'validated_by',
         'source_row_number',
         'is_demo',
+        'source_hash',
+        'duplicate_key',
+        'duplicate_of_id',
     ];
 
     protected function casts(): array
@@ -69,6 +72,11 @@ class Order extends Model
         return $this->hasMany(TransferLog::class);
     }
 
+    public function duplicateOf(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'duplicate_of_id');
+    }
+
     public function decidedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');
@@ -82,6 +90,10 @@ class Order extends Model
 
         if ($this->validation_status === ValidationStatus::Pending) {
             return OrderDisplayStatus::PendingValidation;
+        }
+
+        if ($this->validation_status === ValidationStatus::Duplicate) {
+            return OrderDisplayStatus::Duplicate;
         }
 
         return match ($this->transfer_status) {
@@ -111,7 +123,8 @@ class Order extends Model
     public function canReject(): bool
     {
         return $this->transfer_status !== TransferStatus::Transferred
-            && $this->validation_status !== ValidationStatus::Rejected;
+            && $this->validation_status !== ValidationStatus::Rejected
+            && $this->validation_status !== ValidationStatus::Duplicate;
     }
 
     public function canRetryTransfer(): bool
@@ -125,6 +138,7 @@ class Order extends Model
         return match ($status) {
             OrderDisplayStatus::PendingValidation->value => $query->where('validation_status', ValidationStatus::Pending->value),
             OrderDisplayStatus::Rejected->value => $query->where('validation_status', ValidationStatus::Rejected->value),
+            OrderDisplayStatus::Duplicate->value => $query->where('validation_status', ValidationStatus::Duplicate->value),
             OrderDisplayStatus::Validated->value => $query
                 ->where('validation_status', ValidationStatus::Validated->value)
                 ->where('transfer_status', TransferStatus::None->value),

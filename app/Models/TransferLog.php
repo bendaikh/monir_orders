@@ -52,6 +52,7 @@ class TransferLog extends Model
             'success' => 'Réussi',
             'failed' => 'Échec',
             'pending' => 'En cours',
+            'duplicate' => 'Doublon non envoyé',
             default => 'Inconnu',
         };
     }
@@ -62,6 +63,7 @@ class TransferLog extends Model
             'success' => 'green',
             'failed' => 'rose',
             'pending' => 'purple',
+            'duplicate' => 'slate',
             default => 'slate',
         };
     }

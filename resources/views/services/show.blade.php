@@ -13,14 +13,26 @@
             <x-badge :tone="$service->is_active ? 'green' : 'slate'">{{ $service->is_active ? 'Actif' : 'Inactif' }}</x-badge>
             <p class="mt-2 max-w-2xl text-sm text-slate-500">{{ $service->description }}</p>
         </div>
-        <x-button href="{{ route('countries.services.edit', [$country, $service]) }}">Modifier</x-button>
+        <div class="flex flex-wrap gap-2">
+            <form method="POST" action="{{ route('countries.services.validate-all', [$country, $service]) }}" @submit="if (!confirm('Valider et envoyer les {{ $pendingCount }} commande(s) en attente de {{ addslashes($service->name) }} ? Les doublons seront marqués et non envoyés.')) $event.preventDefault()">
+                @csrf
+                <x-button :disabled="$pendingCount === 0">Valider toutes les commandes en attente ({{ $pendingCount }})</x-button>
+            </form>
+            <x-button href="{{ route('countries.services.edit', [$country, $service]) }}" variant="secondary">Modifier</x-button>
+        </div>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-3">
         <x-card title="Informations">
             <dl class="space-y-3 text-sm">
                 <div><dt class="text-slate-500">Pays</dt><dd class="font-medium">{{ $country->flag }} {{ $country->name }}</dd></div>
-                <div><dt class="text-slate-500">Commandes</dt><dd class="font-medium">{{ $service->orders_count }}</dd></div>
+                <div><dt class="text-slate-500">Commandes</dt><dd class="font-medium">{{ $service->orders_count }} dont {{ $pendingCount }} en attente, {{ $duplicateCount }} doublon(s)</dd></div>
+                <div><dt class="text-slate-500">Doublons</dt><dd class="font-medium">{{ \App\Support\OrderNormalizer::DUPLICATE_MODES[$service->duplicateMode()] ?? '—' }}</dd></div>
+                <div><dt class="text-slate-500">Formats</dt><dd class="font-medium">Dates {{ $service->date_format }} · Montants {{ \App\Support\OrderNormalizer::DECIMAL_FORMATS[$service->decimal_format] ?? $service->decimal_format }}</dd></div>
+                <div><dt class="text-slate-500">Identifiants générés</dt><dd class="font-medium">{{ $service->reference_prefix ? $service->reference_prefix.'1, '.$service->reference_prefix.'2…' : 'Non' }}</dd></div>
+                @if ($service->exclude_products)
+                    <div><dt class="text-slate-500">Produits exclus</dt><dd class="font-medium">{{ $service->exclude_products }}</dd></div>
+                @endif
                 <div><dt class="text-slate-500">Créé le</dt><dd class="font-medium">{{ $service->created_at->translatedFormat('d M Y') }}</dd></div>
             </dl>
         </x-card>

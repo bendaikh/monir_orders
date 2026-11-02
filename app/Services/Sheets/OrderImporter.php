@@ -8,14 +8,15 @@ use App\Models\Order;
 use App\Models\PartnerService;
 use App\Models\SyncLog;
 use App\Models\User;
-use App\Support\Money;
 use App\Support\OrderFields;
-use Carbon\Carbon;
+use App\Support\OrderNormalizer;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Throwable;
 
 class OrderImporter
 {
+    private bool $generatesReferences = false;
+
     public function __construct(private GoogleSheetsGateway $gateway) {}
 
     public function import(PartnerService $service, ?User $user = null, string $type = 'manual'): SyncLog
@@ -93,14 +94,18 @@ class OrderImporter
 
         $index = $this->headerIndex($headers);
         $mapping = $service->mappingFor('source');
+        $this->generatesReferences = $service->generatesReferences();
         $this->assertRequiredColumns($mapping, $index);
 
         $created = 0;
         $skipped = 0;
+        $duplicates = 0;
+        $filtered = 0;
         $errors = 0;
         $details = [];
         $dataRows = array_slice($rows, 1);
         $fetched = 0;
+        $occurrences = [];
 
         foreach ($dataRows as $offset => $row) {
             if ($this->rowIsEmpty($row)) {
@@ -113,27 +118,41 @@ class OrderImporter
             $reference = trim((string) ($values['reference'] ?? ''));
             $customer = trim((string) ($values['customer_name'] ?? ''));
 
-            if ($reference === '' || $customer === '') {
+            if ($customer === '' || ($reference === '' && ! $service->generatesReferences())) {
                 $errors++;
                 $details[] = 'Ligne '.$line.' : référence ou nom du client manquant.';
 
                 continue;
             }
 
-            $exists = Order::query()
-                ->where('service_id', $service->id)
-                ->where('reference', $reference)
-                ->exists();
+            if (OrderNormalizer::isExcluded($service, $values['product'] ?? null)) {
+                $filtered++;
 
-            if ($exists) {
+                continue;
+            }
+
+            // Fingerprint of the whole source row (+ occurrence number for identical copies):
+            // re-reading the sheet never re-imports a row, and two different customers sharing
+            // a timestamp are two different rows.
+            $content = sha1(json_encode(array_map(fn ($cell) => trim((string) $cell), $row), JSON_UNESCAPED_UNICODE));
+            $occurrences[$content] = ($occurrences[$content] ?? 0) + 1;
+            $hash = hash('sha256', $content.'#'.$occurrences[$content]);
+
+            if (Order::query()->where('service_id', $service->id)->where('source_hash', $hash)->exists()) {
                 $skipped++;
 
                 continue;
             }
 
             try {
-                $this->createOrder($service, $values, $reference, $customer, $line);
-                $created++;
+                $order = $this->createOrder($service, $values, $reference, $customer, $line, $hash);
+
+                if ($order->validation_status === ValidationStatus::Duplicate) {
+                    $duplicates++;
+                    $details[] = 'Ligne '.$line.' : doublon de '.($order->duplicateOf?->reference ?? 'une commande existante').' (commande '.$order->reference.', non envoyée).';
+                } else {
+                    $created++;
+                }
             } catch (UniqueConstraintViolationException) {
                 $skipped++;
             } catch (Throwable $exception) {
@@ -148,17 +167,48 @@ class OrderImporter
             'last_error' => $errors > 0 ? 'Certaines lignes n\'ont pas pu être importées.' : null,
         ]);
 
-        return $this->summary($fetched, $created, $skipped, $errors, $details);
+        $message = sprintf(
+            '%d commande(s) importée(s), %d doublon(s) détecté(s) et marqué(s) « Doublon », %d ligne(s) déjà importée(s), %d filtrée(s), %d erreur(s).',
+            $created,
+            $duplicates,
+            $skipped,
+            $filtered,
+            $errors,
+        );
+
+        return $this->summary($fetched, $created + $duplicates, $skipped + $filtered, $errors, $details, $message);
     }
 
     /**
      * @param  array<string, string|null>  $values
      */
-    private function createOrder(PartnerService $service, array $values, string $reference, string $customer, int $line): void
+    private function createOrder(PartnerService $service, array $values, string $reference, string $customer, int $line, string $hash): Order
     {
-        $quantity = Money::parse($values['quantity'] ?? null);
-        $unitPrice = Money::parse($values['unit_price'] ?? null);
+        $quantity = OrderNormalizer::money($values['quantity'] ?? null, 'auto');
+        $unitPrice = OrderNormalizer::money($values['unit_price'] ?? null, $service->decimal_format);
         $product = trim((string) ($values['product'] ?? ''));
+        $orderedAt = OrderNormalizer::date($values['ordered_at'] ?? null, $service->date_format);
+
+        $duplicateKey = OrderNormalizer::duplicateKey($service, $reference !== '' ? $reference : null, $values['phone'] ?? null, $product, $orderedAt);
+
+        $original = null;
+
+        if ($duplicateKey !== null) {
+            $original = Order::query()
+                ->where('service_id', $service->id)
+                ->where('duplicate_key', $duplicateKey)
+                ->whereNotIn('validation_status', [ValidationStatus::Duplicate->value, ValidationStatus::Rejected->value])
+                ->orderBy('id')
+                ->first();
+        }
+
+        if ($reference === '') {
+            $reference = $service->nextReference();
+        } elseif (Order::query()->where('service_id', $service->id)->where('reference', $reference)->exists()) {
+            // Same reference but a different source row: keep it visible as a duplicate.
+            $original ??= Order::query()->where('service_id', $service->id)->where('reference', $reference)->first();
+            $reference = $reference.'-L'.$line;
+        }
 
         $order = Order::query()->create([
             'service_id' => $service->id,
@@ -167,12 +217,16 @@ class OrderImporter
             'phone' => $this->nullable($values['phone'] ?? null),
             'city' => $this->nullable($values['city'] ?? null),
             'address' => $this->nullable($values['address'] ?? null),
-            'total_amount' => Money::parse($values['total_amount'] ?? null),
-            'ordered_at' => $this->parseDate($values['ordered_at'] ?? null),
+            'total_amount' => OrderNormalizer::money($values['total_amount'] ?? null, $service->decimal_format),
+            'ordered_at' => $orderedAt,
             'received_at' => now(),
-            'validation_status' => ValidationStatus::Pending,
+            'validation_status' => $original ? ValidationStatus::Duplicate : ValidationStatus::Pending,
             'transfer_status' => TransferStatus::None,
+            'rejection_reason' => $original ? 'Doublon de la commande '.$original->reference.'.' : null,
             'source_row_number' => $line,
+            'source_hash' => $hash,
+            'duplicate_key' => $duplicateKey,
+            'duplicate_of_id' => $original?->id,
             'is_demo' => false,
         ]);
 
@@ -187,6 +241,8 @@ class OrderImporter
                 'line_total' => $price === null ? null : number_format($qty * $price, 2, '.', ''),
             ]);
         }
+
+        return $order;
     }
 
     /**
@@ -199,6 +255,10 @@ class OrderImporter
 
         foreach (OrderFields::definitions() as $field => $definition) {
             if (! $definition['required']) {
+                continue;
+            }
+
+            if ($field === 'reference' && $this->generatesReferences) {
                 continue;
             }
 
@@ -276,21 +336,6 @@ class OrderImporter
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
-    }
-
-    private function parseDate(mixed $value): ?Carbon
-    {
-        $value = trim((string) $value);
-
-        if ($value === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (Throwable) {
-            return null;
-        }
     }
 
     /**

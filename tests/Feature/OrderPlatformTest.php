@@ -152,15 +152,17 @@ class OrderPlatformTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(1, Order::query()->count());
+        // Same reference on a different row is kept visible as a duplicate, never pushed.
+        $this->assertSame(2, Order::query()->count());
+        $this->assertSame(1, Order::query()->where('validation_status', ValidationStatus::Duplicate->value)->count());
 
         $this->actingAs($user)
             ->post(route('countries.services.import', [$country, $service]))
             ->assertRedirect();
 
-        $this->assertSame(1, Order::query()->count());
+        $this->assertSame(2, Order::query()->count());
 
-        $order = Order::query()->first();
+        $order = Order::query()->where('reference', 'CMD-1')->first();
         $this->actingAs($user)
             ->post(route('countries.validation.validate', [$country, $order]))
             ->assertRedirect()
@@ -285,5 +287,14 @@ class FakeGoogleSheets implements GoogleSheetsGateway
         }
 
         return ['updatedRange' => 'Sortie!A2:J2', 'updatedRows' => 1];
+    }
+
+    public function appendRows(string $spreadsheetId, string $worksheet, array $rows): array
+    {
+        foreach ($rows as $row) {
+            $this->appendRow($spreadsheetId, $worksheet, $row);
+        }
+
+        return ['updatedRange' => 'Sortie!A2', 'updatedRows' => count($rows)];
     }
 }

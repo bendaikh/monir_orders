@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 class OrderStats
 {
     /**
-     * @return array{total: int, pending: int, validated: int, transfer_pending: int, transferred: int, rejected: int, failed: int}
+     * @return array{total: int, pending: int, validated: int, transfer_pending: int, transferred: int, rejected: int, failed: int, duplicates: int}
      */
     public function summarize(Builder $query): array
     {
@@ -27,6 +27,7 @@ class OrderStats
             )
             ->selectRaw('SUM(CASE WHEN transfer_status = ? THEN 1 ELSE 0 END) as transferred', [TransferStatus::Transferred->value])
             ->selectRaw('SUM(CASE WHEN validation_status = ? THEN 1 ELSE 0 END) as rejected', [ValidationStatus::Rejected->value])
+            ->selectRaw('SUM(CASE WHEN validation_status = ? THEN 1 ELSE 0 END) as duplicates', [ValidationStatus::Duplicate->value])
             ->selectRaw(
                 'SUM(CASE WHEN validation_status = ? AND transfer_status = ? THEN 1 ELSE 0 END) as failed',
                 [ValidationStatus::Validated->value, TransferStatus::Failed->value],
@@ -41,6 +42,7 @@ class OrderStats
             'transferred' => (int) ($row->transferred ?? 0),
             'rejected' => (int) ($row->rejected ?? 0),
             'failed' => (int) ($row->failed ?? 0),
+            'duplicates' => (int) ($row->duplicates ?? 0),
         ];
     }
 }
