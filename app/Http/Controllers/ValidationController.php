@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Services\Sheets\OrderImporter;
 use App\Services\Sheets\OrderTransferrer;
+use App\Services\Sheets\SourceRowMarker;
 use App\Models\PartnerService;
 use App\Services\Orders\OrderFilters;
 use App\Services\Orders\OrderStats;
@@ -169,6 +170,7 @@ class ValidationController extends Controller
             }
 
             $stats = $transferrer->transferBatch($service, $pending, $user);
+            $marked = app(SourceRowMarker::class)->markLatest($service->fresh('sourceIntegration'), $pending->map->fresh());
         } finally {
             $lock->release();
         }
@@ -179,7 +181,7 @@ class ValidationController extends Controller
             $stats['transferred'],
             $importDuplicates + $stats['duplicates'],
             $stats['failed'],
-        );
+        ).($marked ? ' Dernière commande envoyée marquée en vert (ligne '.$marked.' de la feuille source).' : '');
 
         return back()->with($stats['failed'] > 0 ? 'warning' : 'success', $message);
     }

@@ -246,6 +246,19 @@ class OrderPlatformTest extends TestCase
 
 class FakeGoogleSheets implements GoogleSheetsGateway
 {
+    public array $backgrounds = [];
+
+    public bool $failFormatting = false;
+
+    public function setRowBackground(string $spreadsheetId, string $worksheet, int $row, ?array $rgb): void
+    {
+        if ($this->failFormatting) {
+            throw new \RuntimeException('format refused');
+        }
+
+        $this->backgrounds[] = [$spreadsheetId, $row, $rgb === null ? 'clear' : 'green'];
+    }
+
     public int $appends = 0;
 
     public bool $failAppend = false;

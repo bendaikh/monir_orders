@@ -127,6 +127,37 @@ class GoogleSheetsClient implements GoogleSheetsGateway
         ];
     }
 
+    public function setRowBackground(string $spreadsheetId, string $worksheet, int $row, ?array $rgb): void
+    {
+        $meta = $this->request(
+            'get',
+            "https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}",
+            ['fields' => 'sheets.properties(sheetId,title)'],
+        );
+
+        $sheetId = null;
+
+        foreach ($meta['sheets'] ?? [] as $sheet) {
+            if (($sheet['properties']['title'] ?? null) === $worksheet) {
+                $sheetId = $sheet['properties']['sheetId'] ?? null;
+            }
+        }
+
+        if ($sheetId === null) {
+            throw new GoogleSheetsException('Onglet « '.$worksheet.' » introuvable.');
+        }
+
+        $this->request('post', "https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}:batchUpdate", [], [
+            'requests' => [[
+                'repeatCell' => [
+                    'range' => ['sheetId' => $sheetId, 'startRowIndex' => $row - 1, 'endRowIndex' => $row],
+                    'cell' => ['userEnteredFormat' => $rgb === null ? (object) [] : ['backgroundColor' => $rgb]],
+                    'fields' => 'userEnteredFormat.backgroundColor',
+                ],
+            ]],
+        ]);
+    }
+
     private function range(string $worksheet, string $cells): string
     {
         $worksheet = str_replace("'", "''", $worksheet);

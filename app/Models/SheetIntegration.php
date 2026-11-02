@@ -17,6 +17,7 @@ class SheetIntegration extends Model
         'last_tested_at',
         'last_synced_at',
         'last_error',
+        'marked_row',
     ];
 
     protected function casts(): array
