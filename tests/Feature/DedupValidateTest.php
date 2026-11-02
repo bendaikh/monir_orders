@@ -96,42 +96,73 @@ class DedupValidateTest extends TestCase
         $this->assertSame(5, Order::query()->count());
     }
 
-    public function test_validate_all_pushes_once_skips_duplicates_and_second_click_pushes_nothing(): void
+    public function test_validate_all_counts_today_live_pushes_once_and_second_click_pushes_nothing(): void
     {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(20, 0));
+
         [$user, $country, $service, $gateway] = $this->setUpCodpayLike([
-            ['28/02/2026 02:32:10', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '2', '82.000', ''],
-            ['28/02/2026 09:10:00', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '1', '41.000', ''],
-            ['13/09/2026 08:18:14', 'thermal', 'Gaston', '078548598', 'A', '', '1', '85.000', ''],
-            ['13/09/2026 08:18:14', 'thermal', 'Linus', '0762505329', 'B', '', '1', '85.000', ''],
+            ['01/11/2026 10:00:00', 'old', 'Hier', '0711111111', 'X', '', '1', '10.000', ''],
+            ['02/11/2026 02:32:10', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '2', '82.000', ''],
+            ['02/11/2026 09:10:00', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '1', '41.000', ''],
+            ['02/11/2026 08:18:14', 'thermal', 'Gaston', '078548598', 'A', '', '1', '85.000', ''],
+            ['02/11/2026 08:18:14', 'thermal', 'Linus', '0762505329', 'B', '', '1', '85.000', ''],
         ]);
 
         $this->actingAs($user)->get(route('countries.services.edit', [$country, $service]))
             ->assertOk()->assertSee('Règle de détection des doublons');
-        $this->actingAs($user)->post(route('countries.services.import', [$country, $service]));
+
+        // No import step: the count is read live from the source sheet (today's rows only).
         $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))
-            ->assertOk()->assertSee('Valider toutes les commandes en attente (3)');
+            ->assertOk()->assertSee('Valider toutes les commandes en attente (4)');
+        $this->assertSame(0, Order::query()->count());
 
         $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
-            ->assertRedirect()->assertSessionHas('success');
+            ->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, '3 transférée(s), 1 doublon(s) supprimé(s)'));
 
         $this->assertSame(3, $gateway->appended);
         $this->assertSame(3, Order::query()->where('transfer_status', TransferStatus::Transferred->value)->count());
         $this->assertSame(1, Order::query()->where('validation_status', ValidationStatus::Duplicate->value)->count());
+        $this->assertSame(0, Order::query()->whereHas('items', fn ($q) => $q->where('name', 'old'))->count());
         $this->assertSame(['CP-1', 'mm5gd1rz', 'Fathi', '58450856', '', 'Médenine', '2.00', '82.00', ''], $gateway->sheets['dst'][1]);
 
-        $this->actingAs($user)->post(route('countries.services.import', [$country, $service]));
+        // A new repeat of an already-pushed order arrives, plus one new order.
+        $gateway->sheets['src'][] = ['02/11/2026 18:00:00', 'thermal', 'Gaston', '+255 078548598', 'A', '', '1', '85.000', ''];
+        $gateway->sheets['src'][] = ['02/11/2026 19:00:00', 'thermal', 'Nouveau', '0799999999', 'C', '', '1', '85.000', ''];
+
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 transférée(s), 1 doublon(s) supprimé(s)'));
+        $this->assertSame(4, $gateway->appended);
+
         $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))->assertRedirect();
-        $this->assertSame(3, $gateway->appended);
+        $this->assertSame(4, $gateway->appended);
+    }
+
+    public function test_show_page_handles_google_errors(): void
+    {
+        [$user, $country, $service] = $this->setUpCodpayLike([]);
+        $this->app->instance(GoogleSheetsGateway::class, new class(['src' => [[]]]) extends FakeBatchSheets {
+            public function readValues(string $spreadsheetId, string $worksheet): array
+            {
+                throw new \App\Services\Sheets\GoogleSheetsException('Accès refusé à la feuille.');
+            }
+        });
+
+        $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))
+            ->assertOk()->assertSee('Valider toutes les commandes en attente (?)')->assertSee('Accès refusé à la feuille.');
+
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
+            ->assertSessionHas('error');
     }
 
     public function test_reference_already_in_destination_is_not_pushed_again(): void
     {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(20, 0));
+
         [$user, $country, $service, $gateway] = $this->setUpCodpayLike(
-            [['28/02/2026 02:32:10', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '2', '82.000', '']],
+            [['02/11/2026 02:32:10', 'mm5gd1rz', 'Fathi', '58450856', 'Médenine', '', '2', '82.000', '']],
             [['CP-1', 'mm5gd1rz', 'Fathi', '58450856', '', 'Médenine', '2', '82', '']],
         );
 
-        $this->actingAs($user)->post(route('countries.services.import', [$country, $service]));
         $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]));
 
         $this->assertSame(0, $gateway->appended);

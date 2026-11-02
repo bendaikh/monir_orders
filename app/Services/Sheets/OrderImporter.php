@@ -10,6 +10,7 @@ use App\Models\SyncLog;
 use App\Models\User;
 use App\Support\OrderFields;
 use App\Support\OrderNormalizer;
+use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Throwable;
 
@@ -19,7 +20,38 @@ class OrderImporter
 
     public function __construct(private GoogleSheetsGateway $gateway) {}
 
-    public function import(PartnerService $service, ?User $user = null, string $type = 'manual'): SyncLog
+    /**
+     * Count the source rows dated on $date (by the mapped "ordered_at" column), read live from the sheet.
+     * Rows with no customer name or with an excluded product are not counted.
+     *
+     * @throws GoogleSheetsException
+     */
+    public function countForDate(PartnerService $service, CarbonInterface $date): int
+    {
+        $service->load(['sourceIntegration', 'columnMappings', 'country']);
+        [$rows, $index, $mapping] = $this->readSource($service);
+        $count = 0;
+
+        foreach (array_slice($rows, 1) as $row) {
+            if ($this->rowIsEmpty($row)) {
+                continue;
+            }
+
+            $values = $this->extract($row, $index, $mapping);
+
+            if (trim((string) ($values['customer_name'] ?? '')) === ''
+                || ! $this->isOnDate($service, $values, $date)
+                || OrderNormalizer::isExcluded($service, $values['product'] ?? null)) {
+                continue;
+            }
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    public function import(PartnerService $service, ?User $user = null, string $type = 'manual', ?CarbonInterface $onlyDate = null): SyncLog
     {
         $service->load(['sourceIntegration', 'columnMappings', 'country']);
 
@@ -32,7 +64,7 @@ class OrderImporter
         ]);
 
         try {
-            $result = $this->pull($service);
+            $result = $this->pull($service, $onlyDate);
             $log->update([
                 'result' => $result['errors'] > 0 ? 'partial' : 'success',
                 'fetched_count' => $result['fetched'],
@@ -65,9 +97,9 @@ class OrderImporter
     }
 
     /**
-     * @return array{fetched: int, created: int, skipped: int, errors: int, message: string, details: array<int, string>}
+     * @return array{0: array<int, array<int, string>>, 1: array<string, int>, 2: array<string, string>}
      */
-    private function pull(PartnerService $service): array
+    private function readSource(PartnerService $service): array
     {
         if (! $this->gateway->isConfigured()) {
             throw new GoogleSheetsException($this->gateway->configurationError() ?? 'Identifiants Google manquants.');
@@ -83,6 +115,36 @@ class OrderImporter
         $headers = $rows[0] ?? [];
 
         if ($headers === []) {
+            return [[], [], []];
+        }
+
+        $index = $this->headerIndex($headers);
+        $mapping = $service->mappingFor('source');
+        $this->generatesReferences = $service->generatesReferences();
+        $this->assertRequiredColumns($mapping, $index);
+
+        return [$rows, $index, $mapping];
+    }
+
+    /**
+     * @param  array<string, string|null>  $values
+     */
+    private function isOnDate(PartnerService $service, array $values, CarbonInterface $date): bool
+    {
+        $orderedAt = OrderNormalizer::date($values['ordered_at'] ?? null, $service->date_format);
+
+        return $orderedAt !== null && $orderedAt->format('Y-m-d') === $date->format('Y-m-d');
+    }
+
+    /**
+     * @return array{fetched: int, created: int, skipped: int, errors: int, message: string, details: array<int, string>}
+     */
+    private function pull(PartnerService $service, ?CarbonInterface $onlyDate = null): array
+    {
+        $source = $service->sourceIntegration;
+        [$rows, $index, $mapping] = $this->readSource($service);
+
+        if ($rows === []) {
             $source->update([
                 'connection_status' => 'connected',
                 'last_synced_at' => now(),
@@ -91,11 +153,6 @@ class OrderImporter
 
             return $this->summary(0, 0, 0, 0, [], 'La feuille source est vide.');
         }
-
-        $index = $this->headerIndex($headers);
-        $mapping = $service->mappingFor('source');
-        $this->generatesReferences = $service->generatesReferences();
-        $this->assertRequiredColumns($mapping, $index);
 
         $created = 0;
         $skipped = 0;
@@ -112,9 +169,14 @@ class OrderImporter
                 continue;
             }
 
-            $fetched++;
             $line = $offset + 2;
             $values = $this->extract($row, $index, $mapping);
+
+            if ($onlyDate !== null && ! $this->isOnDate($service, $values, $onlyDate)) {
+                continue;
+            }
+
+            $fetched++;
             $reference = trim((string) ($values['reference'] ?? ''));
             $customer = trim((string) ($values['customer_name'] ?? ''));
 

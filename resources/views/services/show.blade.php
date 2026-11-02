@@ -14,9 +14,16 @@
             <p class="mt-2 max-w-2xl text-sm text-slate-500">{{ $service->description }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <form method="POST" action="{{ route('countries.services.validate-all', [$country, $service]) }}" @submit="if (!confirm('Valider et envoyer les {{ $pendingCount }} commande(s) en attente de {{ addslashes($service->name) }} ? Les doublons seront marqués et non envoyés.')) $event.preventDefault()">
+            <form method="POST" action="{{ route('countries.services.validate-all', [$country, $service]) }}" @submit="if (!confirm('Valider et envoyer les {{ $todayCount ?? '' }} commande(s) du jour de {{ addslashes($service->name) }} ? Les doublons seront supprimés et non envoyés.')) $event.preventDefault()">
                 @csrf
-                <x-button :disabled="$pendingCount === 0">Valider toutes les commandes en attente ({{ $pendingCount }})</x-button>
+                <x-button :disabled="$todayCount === 0">Valider toutes les commandes en attente ({{ $todayCount ?? '?' }})</x-button>
+                <p class="mt-1 text-xs text-slate-500">
+                    @if ($todayError)
+                        <span class="text-red-600">Comptage indisponible : {{ $todayError }}</span>
+                    @else
+                        Commandes du {{ now()->format('d/m/Y') }} dans la feuille source (mis à jour chaque minute).
+                    @endif
+                </p>
             </form>
             <x-button href="{{ route('countries.services.edit', [$country, $service]) }}" variant="secondary">Modifier</x-button>
         </div>
