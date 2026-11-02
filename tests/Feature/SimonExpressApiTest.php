@@ -161,5 +161,10 @@ class SimonExpressApiTest extends TestCase
         $this->assertSame('mbeya-uyole', $m->fuzzy('Mbeya Uyole'));
         $this->assertSame('MBEYA', $m->fuzzy('MBEYA VIJIJINI KATA ISUTO'));
         $this->assertNull($m->fuzzy('tz'));
+        $this->assertSame('DAR SALAM', $m->fuzzy('GEZAULOLE KIGAMBONI'));
+        $this->assertSame('MOSHI', $m->fuzzy('Kilimanjaro'));
+        $this->assertSame('Vwawa', $m->fuzzy('Tunduma'));
+        $this->assertSame('Njombe', $m->fuzzy('WAnging,ombe mdandu'));
+        $this->assertSame('MBEYA', $m->fuzzy('Mby chunya'));
     }
 }

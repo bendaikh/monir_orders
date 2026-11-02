@@ -51,11 +51,12 @@ class CityMatcher
         }
 
         $cities = config('simon_express.cities', []);
-        $aliases = ['dar' => 'DAR SALAM', 'dar es salaam' => 'DAR SALAM', 'dar es salam' => 'DAR SALAM', 'dsm' => 'DAR SALAM', 'zanzibar' => 'ZANZIBAR', 'uyole' => 'mbeya-uyole', 'songwe' => 'mbeya-songwe'];
+        $aliases = config('simon_express.city_aliases', []);
+        uksort($aliases, fn ($a, $b) => strlen((string) $b) <=> strlen((string) $a));
         $words = explode(' ', $text);
 
         foreach ($aliases as $alias => $city) {
-            if (str_contains(' '.$text.' ', ' '.$alias.' ')) {
+            if (($alias = self::normalize((string) $alias)) !== '' && str_contains(' '.$text.' ', ' '.$alias.' ')) {
                 return $city;
             }
         }
