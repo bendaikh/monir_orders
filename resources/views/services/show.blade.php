@@ -55,9 +55,14 @@
         </x-card>
         <x-card title="Destination — commandes validées">
             <dl class="space-y-3 text-sm">
+                @if ($service->usesApi())
+                    <div><dt class="text-slate-500">Système</dt><dd class="font-medium">Simon Express (API)</dd></div>
+                    <div><dt class="text-slate-500">Connexion</dt><dd class="mt-1"><x-destination-status :service="$service" /></dd></div>
+                @else
                 <div><dt class="text-slate-500">Onglet</dt><dd class="font-medium">{{ $service->destinationIntegration?->worksheet_name ?: '—' }}</dd></div>
                 <div><dt class="text-slate-500">Identifiant</dt><dd class="break-all font-medium">{{ $service->destinationIntegration?->spreadsheet_id ?: '—' }}</dd></div>
                 <div><dt class="text-slate-500">Connexion</dt><dd class="mt-1"><x-badge :tone="$service->destinationIntegration?->statusTone() ?? 'slate'">{{ $service->destinationIntegration?->statusLabel() ?? 'Non configuré' }}</x-badge></dd></div>
+                @endif
             </dl>
         </x-card>
     </div>

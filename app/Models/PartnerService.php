@@ -87,6 +87,42 @@ class PartnerService extends Model
         return $this->destination_type === 'api';
     }
 
+    public function hasApiCredentials(): bool
+    {
+        $config = $this->api_config ?? [];
+
+        return ($config['auth_mode'] ?? 'bearer') === 'basic'
+            ? filled($config['consumer_key'] ?? null) && filled($config['consumer_secret'] ?? null)
+            : filled($config['token'] ?? null);
+    }
+
+    /** API test results are kept on the (otherwise unused) destination integration row. */
+    public function apiStatusLabel(): string
+    {
+        if (! $this->hasApiCredentials()) {
+            return 'Clé non renseignée';
+        }
+
+        return match ($this->destinationIntegration?->connection_status) {
+            'connected' => 'Connecté',
+            'error' => 'Erreur',
+            default => 'Clé enregistrée · non testée',
+        };
+    }
+
+    public function apiStatusTone(): string
+    {
+        if (! $this->hasApiCredentials()) {
+            return 'slate';
+        }
+
+        return match ($this->destinationIntegration?->connection_status) {
+            'connected' => 'green',
+            'error' => 'red',
+            default => 'orange',
+        };
+    }
+
     public function syncLogs(): HasMany
     {
         return $this->hasMany(SyncLog::class, 'service_id');

@@ -83,10 +83,17 @@
             </dl>
         </x-card>
 
-        <x-card title="Feuille de destination">
+        <x-card :title="$order->service->usesApi() ? 'Destination : Simon Express (API)' : 'Feuille de destination'">
             <dl class="space-y-3 text-sm">
+                @if ($order->service->usesApi())
+                    <div><dt class="text-slate-500">Code colis</dt><dd class="font-medium">{{ $order->parcel_code ?: '—' }}</dd></div>
+                    @if ($order->api_error)
+                        <div><dt class="text-slate-500">Erreur</dt><dd class="font-medium text-red-600">{{ $order->api_error }}</dd></div>
+                    @endif
+                @else
                 <div><dt class="text-slate-500">Onglet</dt><dd class="font-medium">{{ $order->service->destinationIntegration?->worksheet_name ?: '—' }}</dd></div>
                 <div><dt class="text-slate-500">Identifiant</dt><dd class="break-all font-medium">{{ $order->service->destinationIntegration?->spreadsheet_id ?: '—' }}</dd></div>
+                @endif
                 <div><dt class="text-slate-500">Transférée le</dt><dd class="font-medium">{{ $order->transferred_at?->translatedFormat('d M Y à H:i') ?: '—' }}</dd></div>
             </dl>
         </x-card>

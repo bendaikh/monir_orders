@@ -75,7 +75,13 @@ class ApiDestinationController extends Controller
             }
         }
 
-        DB::transaction(function () use ($service, $config, $data) {
+        $credentialsChanged = ($service->api_config ?? []) != $config;
+
+        DB::transaction(function () use ($service, $config, $data, $credentialsChanged) {
+            if ($credentialsChanged) {
+                $service->integrations()->where('direction', 'destination')->update(['connection_status' => 'unconfigured', 'last_error' => null]);
+            }
+
             $service->update([
                 'api_config' => $config,
                 'api_price_mode' => $data['api_price_mode'],
@@ -117,6 +123,11 @@ class ApiDestinationController extends Controller
     public function test(Country $country, PartnerService $service, SimonExpressClient $client): RedirectResponse
     {
         $result = $client->test($service);
+        $service->integrations()->updateOrCreate(['direction' => 'destination'], [
+            'connection_status' => $result['ok'] ? 'connected' : 'error',
+            'last_tested_at' => now(),
+            'last_error' => $result['ok'] ? null : $result['message'],
+        ]);
 
         return back()->with($result['ok'] ? 'success' : 'error', 'Simon Express : '.$result['message']);
     }
