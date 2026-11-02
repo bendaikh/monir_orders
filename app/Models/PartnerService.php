@@ -24,7 +24,13 @@ class PartnerService extends Model
         'decimal_format',
         'exclude_products',
         'reference_prefix',
+        'destination_type',
+        'api_config',
+        'api_price_mode',
+        'api_city_fallback',
     ];
+
+    protected $hidden = ['api_config'];
 
     protected function casts(): array
     {
@@ -32,6 +38,7 @@ class PartnerService extends Model
             'is_active' => 'boolean',
             'phone_digits' => 'integer',
             'reference_counter' => 'integer',
+            'api_config' => 'encrypted:array',
         ];
     }
 
@@ -63,6 +70,21 @@ class PartnerService extends Model
     public function columnMappings(): HasMany
     {
         return $this->hasMany(ColumnMapping::class, 'service_id');
+    }
+
+    public function productMappings(): HasMany
+    {
+        return $this->hasMany(ServiceProductMapping::class, 'service_id');
+    }
+
+    public function cityMappings(): HasMany
+    {
+        return $this->hasMany(ServiceCityMapping::class, 'service_id');
+    }
+
+    public function usesApi(): bool
+    {
+        return $this->destination_type === 'api';
     }
 
     public function syncLogs(): HasMany

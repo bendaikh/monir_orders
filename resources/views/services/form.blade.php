@@ -21,6 +21,17 @@
                     <option value="1" @selected(old('is_active', $service->is_active ? '1' : '0') == '1' || old('is_active', $service->is_active) === true)>Actif</option>
                     <option value="0" @selected(old('is_active', $service->is_active ? '1' : '0') == '0' || old('is_active') === false)>Inactif</option>
                 </x-select>
+                <x-select label="Destination des commandes validées" name="destination_type">
+                    <option value="sheet" @selected(old('destination_type', $service->destination_type ?? 'sheet') === 'sheet')>Google Sheet</option>
+                    <option value="api" @selected(old('destination_type', $service->destination_type) === 'api')>Système (API) — Simon Express</option>
+                </x-select>
+                <div class="text-sm text-slate-500 md:self-end">
+                    @if ($service->exists && $service->usesApi())
+                        <a class="font-medium text-blue-600 hover:underline" href="{{ route('countries.services.api.edit', [$country, $service]) }}">Configurer le système (clé API, produits, villes) →</a>
+                    @else
+                        En mode « Système (API) », la clé, les produits et les villes se règlent dans l'onglet Système du service.
+                    @endif
+                </div>
                 <div class="md:col-span-2">
                     <x-textarea label="Description" name="description" :value="$service->description" />
                 </div>

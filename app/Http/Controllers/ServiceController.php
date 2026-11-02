@@ -17,7 +17,7 @@ class ServiceController extends Controller
 {
     private const SETTINGS = [
         'name', 'description', 'is_active', 'duplicate_key', 'phone_digits',
-        'date_format', 'decimal_format', 'exclude_products', 'reference_prefix',
+        'date_format', 'decimal_format', 'exclude_products', 'reference_prefix', 'destination_type',
     ];
 
     public function index(Request $request, Country $country): View

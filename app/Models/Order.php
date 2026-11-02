@@ -35,6 +35,8 @@ class Order extends Model
         'source_hash',
         'duplicate_key',
         'duplicate_of_id',
+        'parcel_code',
+        'api_error',
     ];
 
     protected function casts(): array
