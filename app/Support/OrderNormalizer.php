@@ -97,6 +97,11 @@ class OrderNormalizer
             return null;
         }
 
+        // "85,000" / "1,250,000" in comma format: a comma followed by exact 3-digit groups is a thousands separator.
+        if ($format === 'comma' && preg_match('/^\d{1,3}(,\d{3})+$/', $value)) {
+            $value = str_replace(',', '', $value);
+        }
+
         $value = $format === 'comma'
             ? str_replace(',', '.', str_replace('.', '', $value))
             : str_replace(',', '', $value);
@@ -106,6 +111,23 @@ class OrderNormalizer
         }
 
         return number_format((float) $value, 2, '.', '');
+    }
+
+    /**
+     * Split a price cell written "N=TOTAL" (e.g. "2=85000", "2 = 85.000", "2=85,000") into
+     * quantity N and the total price for that quantity. Plain prices return quantity null.
+     *
+     * @return array{0: string|null, 1: string|null} [quantity, total]
+     */
+    public static function quantityAndTotal(mixed $value, ?string $format = 'auto'): array
+    {
+        $value = trim(str_replace("\xc2\xa0", ' ', (string) $value));
+
+        if (preg_match('/^(\d{1,4})\s*=\s*(.+)$/u', $value, $match) && (int) $match[1] > 0) {
+            return [number_format((int) $match[1], 2, '.', ''), self::money($match[2], $format)];
+        }
+
+        return [null, self::money($value, $format)];
     }
 
     public static function product(mixed $value): string
