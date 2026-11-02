@@ -5,10 +5,12 @@ namespace App\Services\Sheets;
 use App\Enums\TransferStatus;
 use App\Enums\ValidationStatus;
 use App\Models\Order;
+use App\Models\PartnerService;
 use App\Models\SheetIntegration;
 use App\Models\TransferLog;
 use App\Models\User;
 use App\Support\OrderFields;
+use App\Support\OrderNormalizer;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Throwable;
@@ -98,6 +100,13 @@ class OrderTransferrer
                 );
             }
 
+            $destinationKeys = $this->destinationKeys($order->service, $rows, $index, $mapping);
+            $orderKey = $this->orderKey($order);
+
+            if ($orderKey !== null && isset($destinationKeys[$orderKey])) {
+                return $this->closeDuplicate($order, $log);
+            }
+
             $built = $this->buildRow($order, $headers, $index, $mapping);
 
             if ($built['missing'] !== []) {
@@ -150,6 +159,257 @@ class OrderTransferrer
 
             return $this->closeFailure($order, $log, 'Google Sheets : '.$exception->getMessage());
         }
+    }
+
+    /**
+     * End-of-day path: validate-and-push many orders with one destination read and
+     * batched appends. Same dedup rules as the single-order path.
+     *
+     * @param  iterable<Order>  $orders
+     * @return array{transferred: int, duplicates: int, failed: int}
+     */
+    public function transferBatch(PartnerService $service, iterable $orders, ?User $user = null, int $chunk = 200): array
+    {
+        $stats = ['transferred' => 0, 'duplicates' => 0, 'failed' => 0];
+        $service->loadMissing(['destinationIntegration', 'columnMappings', 'country']);
+        $integration = $service->destinationIntegration;
+        $orders = collect($orders)->filter(fn (Order $order) => $order->validation_status === ValidationStatus::Validated
+            && $order->transfer_status !== TransferStatus::Transferred)->values();
+
+        if ($orders->isEmpty()) {
+            return $stats;
+        }
+
+        $failAll = function (string $message) use ($orders, $user, $integration, &$stats) {
+            foreach ($orders as $order) {
+                $this->fail($order, $user, $integration, $message);
+                $stats['failed']++;
+            }
+
+            return $stats;
+        };
+
+        if (! $this->gateway->isConfigured()) {
+            return $failAll($this->gateway->configurationError() ?? 'Les identifiants Google Sheets ne sont pas configurés. Aucun envoi n\'a été effectué.');
+        }
+
+        if ($integration === null || ! $integration->isReady()) {
+            return $failAll('La feuille de destination n\'est pas configurée. Aucun envoi n\'a été effectué.');
+        }
+
+        try {
+            $rows = $this->gateway->readValues($integration->spreadsheet_id, $integration->worksheet_name);
+        } catch (GoogleSheetsException $exception) {
+            return $failAll('Google Sheets : '.$exception->getMessage());
+        }
+
+        $headers = $rows[0] ?? [];
+
+        if ($headers === []) {
+            return $failAll('La feuille de destination ne contient pas de ligne d\'en-têtes. Aucun envoi n\'a été effectué.');
+        }
+
+        $index = $this->headerIndex($headers);
+        $mapping = $service->mappingFor('destination');
+        $referenceColumn = $mapping['reference'] ?? null;
+
+        if ($referenceColumn === null || ! isset($index[$this->normalize($referenceColumn)])) {
+            return $failAll('La colonne de référence de destination est introuvable. Aucun envoi n\'a été effectué.');
+        }
+
+        $referencePosition = $index[$this->normalize($referenceColumn)];
+        $references = [];
+
+        foreach (array_slice($rows, 1) as $row) {
+            $value = trim((string) ($row[$referencePosition] ?? ''));
+
+            if ($value !== '') {
+                $references[$value] = true;
+            }
+        }
+
+        $keys = $this->destinationKeys($service, $rows, $index, $mapping);
+        $queue = [];
+
+        foreach ($orders as $order) {
+            $order->setRelation('service', $service);
+            $order->loadMissing('items');
+            $log = $this->openLog($order, $user, $integration);
+
+            if (isset($references[$order->reference])) {
+                $this->closeSuccess($order, $log, 'La référence était déjà présente dans la feuille de destination. Aucun doublon n\'a été écrit.', ['recovered' => true]);
+                $stats['transferred']++;
+
+                continue;
+            }
+
+            $key = $this->orderKey($order);
+
+            if ($key !== null && isset($keys[$key])) {
+                $this->closeDuplicate($order, $log);
+                $stats['duplicates']++;
+
+                continue;
+            }
+
+            $built = $this->buildRow($order, $headers, $index, $mapping);
+
+            if ($built['missing'] !== []) {
+                $this->closeFailure($order, $log, 'Colonnes de destination introuvables : '.implode(', ', $built['missing']).'. La commande n\'a pas été envoyée.');
+                $stats['failed']++;
+
+                continue;
+            }
+
+            $references[$order->reference] = true;
+
+            if ($key !== null) {
+                $keys[$key] = true;
+            }
+
+            $order->update(['transfer_status' => TransferStatus::Pending]);
+            $queue[] = [$order, $log, $built['row']];
+        }
+
+        foreach (array_chunk($queue, max(1, $chunk)) as $batch) {
+            try {
+                $result = $this->gateway->appendRows(
+                    $integration->spreadsheet_id,
+                    $integration->worksheet_name,
+                    array_map(fn ($item) => $item[2], $batch),
+                );
+                $confirmed = ($result['updatedRows'] ?? 0) >= count($batch) && ($result['updatedRange'] ?? '') !== '';
+            } catch (GoogleSheetsException $exception) {
+                $confirmed = false;
+                $result = ['error' => $exception->getMessage()];
+
+                if ($exception->ambiguous) {
+                    try {
+                        $check = $this->gateway->readValues($integration->spreadsheet_id, $integration->worksheet_name);
+
+                        foreach ($batch as [$order, $log]) {
+                            if ($this->referenceExists($check, $referencePosition, $order->reference)) {
+                                $this->closeSuccess($order, $log, 'Écriture confirmée après vérification.', ['recovered' => true]);
+                                $stats['transferred']++;
+                            } else {
+                                $this->closeFailure($order, $log, 'Google Sheets : '.$exception->getMessage());
+                                $stats['failed']++;
+                            }
+                        }
+
+                        continue;
+                    } catch (Throwable) {
+                        // fall through to failure
+                    }
+                }
+            }
+
+            foreach ($batch as [$order, $log]) {
+                if ($confirmed) {
+                    $this->closeSuccess($order, $log, 'Commande envoyée vers la feuille de destination.', $result);
+                    $stats['transferred']++;
+                } else {
+                    $this->closeFailure($order, $log, isset($result['error'])
+                        ? 'Google Sheets : '.$result['error']
+                        : 'La réponse de Google Sheets ne confirme pas l\'écriture. La commande n\'est pas marquée comme transférée.');
+                    $stats['failed']++;
+                }
+            }
+        }
+
+        if ($stats['transferred'] > 0) {
+            $integration->update([
+                'connection_status' => 'connected',
+                'last_synced_at' => now(),
+                'last_error' => null,
+            ]);
+        }
+
+        return $stats;
+    }
+
+    private function orderKey(Order $order): ?string
+    {
+        if ($order->duplicate_key !== null) {
+            return $order->duplicate_key;
+        }
+
+        $item = $order->items->first();
+
+        return OrderNormalizer::duplicateKey($order->service, $order->reference, $order->phone, $item?->name, $order->ordered_at);
+    }
+
+    /**
+     * Duplicate keys of rows already in the destination sheet. Only built when the destination
+     * has every column the service's duplicate rule needs (e.g. a date column for "same day").
+     *
+     * @param  array<int, array<int, string>>  $rows
+     * @param  array<string, int>  $index
+     * @param  array<string, string>  $mapping
+     * @return array<string, bool>
+     */
+    private function destinationKeys(PartnerService $service, array $rows, array $index, array $mapping): array
+    {
+        $needed = match ($service->duplicateMode()) {
+            'reference' => ['reference'],
+            'phone_product_day' => ['phone', 'product', 'ordered_at'],
+            'phone_product' => ['phone', 'product'],
+            'phone_day' => ['phone', 'ordered_at'],
+            default => [],
+        };
+
+        if ($needed === []) {
+            return [];
+        }
+
+        $positions = [];
+
+        foreach (['reference', 'phone', 'product', 'ordered_at'] as $field) {
+            $column = $mapping[$field] ?? null;
+            $positions[$field] = $column === null ? null : ($index[$this->normalize($column)] ?? null);
+        }
+
+        foreach ($needed as $field) {
+            if ($positions[$field] === null) {
+                return [];
+            }
+        }
+
+        $keys = [];
+
+        foreach (array_slice($rows, 1) as $row) {
+            $cell = fn (string $field) => $positions[$field] === null ? null : ($row[$positions[$field]] ?? null);
+            $key = OrderNormalizer::duplicateKey(
+                $service,
+                $cell('reference'),
+                $cell('phone'),
+                $cell('product'),
+                OrderNormalizer::date($cell('ordered_at'), $service->date_format),
+            );
+
+            if ($key !== null) {
+                $keys[$key] = true;
+            }
+        }
+
+        return $keys;
+    }
+
+    private function closeDuplicate(Order $order, TransferLog $log): Order
+    {
+        $log->update([
+            'status' => 'duplicate',
+            'message' => 'Doublon : une commande identique est déjà dans la feuille de destination. Aucun envoi n\'a été fait.',
+            'finished_at' => now(),
+        ]);
+
+        $order->update([
+            'validation_status' => ValidationStatus::Duplicate,
+            'transfer_status' => TransferStatus::None,
+            'rejection_reason' => 'Doublon : déjà présente dans la feuille de destination.',
+        ]);
+
+        return $order->refresh();
     }
 
     private function openLog(Order $order, ?User $user, SheetIntegration $integration): TransferLog

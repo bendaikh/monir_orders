@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ValidationStatus;
 use App\Http\Requests\ServiceRequest;
 use App\Models\Country;
 use App\Models\PartnerService;
@@ -14,6 +15,11 @@ use Illuminate\View\View;
 
 class ServiceController extends Controller
 {
+    private const SETTINGS = [
+        'name', 'description', 'is_active', 'duplicate_key', 'phone_digits',
+        'date_format', 'decimal_format', 'exclude_products', 'reference_prefix',
+    ];
+
     public function index(Request $request, Country $country): View
     {
         $services = $country->services()
@@ -48,7 +54,7 @@ class ServiceController extends Controller
 
     public function store(ServiceRequest $request, Country $country, PartnerServiceProvisioner $provisioner, SheetConfigurator $configurator): RedirectResponse
     {
-        $service = $country->services()->create($request->safe()->only(['name', 'description', 'is_active']));
+        $service = $country->services()->create($request->safe()->only(self::SETTINGS));
         $provisioner->provision($service);
         $configurator->save($service, $request->validated());
 
@@ -65,6 +71,8 @@ class ServiceController extends Controller
             'country' => $country,
             'service' => $service,
             'fields' => OrderFields::definitions(),
+            'pendingCount' => $service->orders()->where('validation_status', ValidationStatus::Pending->value)->count(),
+            'duplicateCount' => $service->orders()->where('validation_status', ValidationStatus::Duplicate->value)->count(),
         ]);
     }
 
@@ -85,7 +93,7 @@ class ServiceController extends Controller
 
     public function update(ServiceRequest $request, Country $country, PartnerService $service, SheetConfigurator $configurator): RedirectResponse
     {
-        $service->update($request->safe()->only(['name', 'description', 'is_active']));
+        $service->update($request->safe()->only(self::SETTINGS));
         $configurator->save($service, $request->validated());
 
         return redirect()

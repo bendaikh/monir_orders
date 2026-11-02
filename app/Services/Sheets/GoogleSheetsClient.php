@@ -99,6 +99,34 @@ class GoogleSheetsClient implements GoogleSheetsGateway
         ];
     }
 
+    public function appendRows(string $spreadsheetId, string $worksheet, array $rows): array
+    {
+        if ($rows === []) {
+            return ['updatedRange' => '', 'updatedRows' => 0];
+        }
+
+        $range = rawurlencode($this->range($worksheet, 'A1'));
+        $response = $this->request(
+            'post',
+            "https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}/values/{$range}:append",
+            [
+                'valueInputOption' => 'USER_ENTERED',
+                'insertDataOption' => 'INSERT_ROWS',
+            ],
+            ['values' => array_map(
+                fn (array $row) => array_map(fn ($cell) => $cell === null ? '' : (string) $cell, $row),
+                array_values($rows),
+            )],
+        );
+
+        $updates = $response['updates'] ?? [];
+
+        return [
+            'updatedRange' => (string) ($updates['updatedRange'] ?? ''),
+            'updatedRows' => (int) ($updates['updatedRows'] ?? 0),
+        ];
+    }
+
     private function range(string $worksheet, string $cells): string
     {
         $worksheet = str_replace("'", "''", $worksheet);

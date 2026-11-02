@@ -10,6 +10,10 @@ use App\Jobs\TransferOrderJob;
 use Illuminate\Support\Facades\Bus;
 use App\Models\Country;
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use App\Services\Sheets\OrderTransferrer;
+use App\Models\PartnerService;
 use App\Services\Orders\OrderFilters;
 use App\Services\Orders\OrderStats;
 use App\Services\Orders\OrderWorkflow;
@@ -101,6 +105,59 @@ class ValidationController extends Controller
         $message = $transferred.' transfert(s) confirmé(s), '.$failed.' échec(s), '.$skipped.' ignorée(s). Les validations déjà enregistrées sont conservées.';
 
         return back()->with($failed > 0 ? 'warning' : 'success', $message);
+    }
+
+    public function validateAll(Country $country, PartnerService $service, OrderTransferrer $transferrer): RedirectResponse
+    {
+        $lock = Cache::lock('service-validate-all-'.$service->id, 900);
+
+        if (! $lock->get()) {
+            return back()->with('error', 'Une validation globale est déjà en cours pour ce service.');
+        }
+
+        try {
+            @set_time_limit(0);
+            $user = request()->user();
+            $pending = $service->orders()
+                ->where('validation_status', ValidationStatus::Pending->value)
+                ->orderBy('id')
+                ->get();
+
+            if ($pending->isEmpty()) {
+                return back()->with('success', 'Aucune commande en attente pour '.$service->name.'.');
+            }
+
+            foreach ($pending as $order) {
+                DB::transaction(function () use ($order, $user) {
+                    $order->update([
+                        'validation_status' => ValidationStatus::Validated,
+                        'validated_at' => now(),
+                        'validated_by' => $user->id,
+                        'rejection_reason' => null,
+                        'rejected_at' => null,
+                    ]);
+
+                    $order->validationLogs()->create([
+                        'user_id' => $user->id,
+                        'decision' => 'validated',
+                    ]);
+                });
+            }
+
+            $stats = $transferrer->transferBatch($service, $pending, $user);
+        } finally {
+            $lock->release();
+        }
+
+        $message = sprintf(
+            '%d commande(s) validée(s) : %d transférée(s), %d doublon(s) non envoyé(s), %d échec(s).',
+            $pending->count(),
+            $stats['transferred'],
+            $stats['duplicates'],
+            $stats['failed'],
+        );
+
+        return back()->with($stats['failed'] > 0 ? 'warning' : 'success', $message);
     }
 
     public function retry(Country $country, Order $order): RedirectResponse

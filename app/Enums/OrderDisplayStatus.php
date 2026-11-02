@@ -10,6 +10,7 @@ enum OrderDisplayStatus: string
     case TransferPending = 'transfer_pending';
     case Transferred = 'transferred';
     case TransferFailed = 'transfer_failed';
+    case Duplicate = 'duplicate';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum OrderDisplayStatus: string
             self::TransferPending => 'Transfert en attente',
             self::Transferred => 'Transférée',
             self::TransferFailed => 'Échec du transfert',
+            self::Duplicate => 'Doublon',
         };
     }
 
@@ -32,6 +34,7 @@ enum OrderDisplayStatus: string
             self::TransferPending => 'purple',
             self::Transferred => 'green',
             self::TransferFailed => 'rose',
+            self::Duplicate => 'slate',
         };
     }
 

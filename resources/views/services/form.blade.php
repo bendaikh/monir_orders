@@ -61,6 +61,27 @@
             </div>
         </x-card>
 
+        <x-card title="Doublons, formats et identifiants" description="Réglages propres à ce service : comment reconnaître une commande en double, lire les dates et les montants de la feuille source, et générer les identifiants.">
+            <div class="grid gap-4 md:grid-cols-2">
+                <x-select label="Règle de détection des doublons" name="duplicate_key">
+                    <option value="" @selected(old('duplicate_key', $service->duplicate_key) === null || old('duplicate_key', $service->duplicate_key) === '')>Automatique (référence si mappée, sinon téléphone + produit + jour)</option>
+                    @foreach (\App\Support\OrderNormalizer::DUPLICATE_MODES as $value => $label)
+                        <option value="{{ $value }}" @selected(old('duplicate_key', $service->duplicate_key) === $value)>{{ $label }}</option>
+                    @endforeach
+                </x-select>
+                <x-input label="Chiffres significatifs du téléphone" name="phone_digits" type="number" min="6" max="15" :value="$service->phone_digits ?? 8" />
+                <x-input label="Format de date de la source" name="date_format" :value="$service->date_format ?? 'd/m/Y H:i:s'" placeholder="d/m/Y H:i:s" />
+                <x-select label="Format des montants" name="decimal_format">
+                    @foreach (\App\Support\OrderNormalizer::DECIMAL_FORMATS as $value => $label)
+                        <option value="{{ $value }}" @selected(old('decimal_format', $service->decimal_format ?? 'auto') === $value)>{{ $label }}</option>
+                    @endforeach
+                </x-select>
+                <x-input label="Préfixe des identifiants générés" name="reference_prefix" :value="$service->reference_prefix" placeholder="ex. CP-" />
+                <x-input label="Exclure les produits contenant" name="exclude_products" :value="$service->exclude_products" placeholder="ex. -dar, test (séparés par des virgules)" />
+            </div>
+            <p class="mt-3 text-xs text-slate-500">Les doublons restent visibles avec le statut « Doublon » et ne sont jamais envoyés. Le téléphone est comparé sans indicatif ni zéros initiaux, sur ses derniers chiffres. Si un préfixe est renseigné et que la colonne source « Référence » est vide, l'application génère des identifiants stables (préfixe + numéro). Le filtre produit est désactivé tant que le champ est vide.</p>
+        </x-card>
+
         <x-card title="Correspondance des colonnes" description="Chaque service peut utiliser des noms de colonnes différents. La source alimente la commande, la destination reçoit la commande validée.">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">

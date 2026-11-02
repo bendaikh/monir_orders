@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/services/{service}/modifier', [ServiceController::class, 'edit'])->name('services.edit');
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::patch('/services/{service}/statut', [ServiceController::class, 'toggle'])->name('services.toggle');
+        Route::post('/services/{service}/valider-tout', [ValidationController::class, 'validateAll'])->name('services.validate-all');
         Route::post('/services/{service}/importer', [SheetIntegrationController::class, 'import'])->name('services.import');
         Route::post('/services/{service}/tester-envoi', [SheetIntegrationController::class, 'testSend'])->name('services.test-send');
         Route::post('/services/{service}/integration/{direction}/tester', [SheetIntegrationController::class, 'test'])->name('services.test');
