@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiDestinationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CountryDashboardController;
@@ -61,6 +62,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::patch('/services/{service}/statut', [ServiceController::class, 'toggle'])->name('services.toggle');
         Route::post('/services/{service}/valider-tout', [ValidationController::class, 'validateAll'])->name('services.validate-all');
+        Route::get('/services/{service}/systeme', [ApiDestinationController::class, 'edit'])->name('services.api.edit');
+        Route::put('/services/{service}/systeme', [ApiDestinationController::class, 'update'])->name('services.api.update');
+        Route::post('/services/{service}/systeme/tester', [ApiDestinationController::class, 'test'])->name('services.api.test');
         Route::post('/services/{service}/importer', [SheetIntegrationController::class, 'import'])->name('services.import');
         Route::post('/services/{service}/tester-envoi', [SheetIntegrationController::class, 'testSend'])->name('services.test-send');
         Route::post('/services/{service}/integration/{direction}/tester', [SheetIntegrationController::class, 'test'])->name('services.test');

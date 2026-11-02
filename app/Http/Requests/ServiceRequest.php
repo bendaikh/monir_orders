@@ -21,6 +21,7 @@ class ServiceRequest extends FormRequest
             'phone_digits' => $this->input('phone_digits', 8),
             'date_format' => $this->input('date_format') ?: 'd/m/Y H:i:s',
             'decimal_format' => $this->input('decimal_format') ?: 'auto',
+            'destination_type' => $this->input('destination_type') ?: ($this->route('service')?->destination_type ?? 'sheet'),
         ]);
     }
 
@@ -54,8 +55,9 @@ class ServiceRequest extends FormRequest
             'exclude_products' => ['nullable', 'string', 'max:500'],
             'reference_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_\-]+$/'],
             'mappings.source.customer_name' => ['required', 'string', 'max:120'],
-            'mappings.destination.reference' => ['required', 'string', 'max:120'],
-            'mappings.destination.customer_name' => ['required', 'string', 'max:120'],
+            'destination_type' => ['required', Rule::in(['sheet', 'api'])],
+            'mappings.destination.reference' => ['required_if:destination_type,sheet', 'nullable', 'string', 'max:120'],
+            'mappings.destination.customer_name' => ['required_if:destination_type,sheet', 'nullable', 'string', 'max:120'],
         ];
     }
 
@@ -95,8 +97,8 @@ class ServiceRequest extends FormRequest
             'mappings.source.reference.required_without' => 'Indiquez la colonne source de la référence, ou un préfixe pour générer les identifiants.',
             'reference_prefix.regex' => 'Le préfixe ne peut contenir que des lettres, chiffres, tirets et underscores.',
             'mappings.source.customer_name.required' => 'La colonne source du nom du client est obligatoire.',
-            'mappings.destination.reference.required' => 'La colonne de destination de la référence est obligatoire.',
-            'mappings.destination.customer_name.required' => 'La colonne de destination du nom du client est obligatoire.',
+            'mappings.destination.reference.required_if' => 'La colonne de destination de la référence est obligatoire.',
+            'mappings.destination.customer_name.required_if' => 'La colonne de destination du nom du client est obligatoire.',
         ];
     }
 }

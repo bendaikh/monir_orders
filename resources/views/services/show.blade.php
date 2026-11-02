@@ -25,6 +25,9 @@
                     @endif
                 </p>
             </form>
+            @if ($service->usesApi())
+                <x-button href="{{ route('countries.services.api.edit', [$country, $service]) }}" variant="secondary">Système (API)</x-button>
+            @endif
             <x-button href="{{ route('countries.services.edit', [$country, $service]) }}" variant="secondary">Modifier</x-button>
         </div>
     </div>

@@ -12,6 +12,8 @@ use App\Models\Country;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Enums\TransferStatus;
+use App\Services\Api\ApiOrderSender;
 use App\Services\Sheets\OrderImporter;
 use App\Services\Sheets\OrderTransferrer;
 use App\Services\Sheets\SourceRowMarker;
@@ -139,8 +141,17 @@ class ValidationController extends Controller
                 ->count();
 
             $pending = $service->orders()
-                ->where('validation_status', ValidationStatus::Pending->value)
                 ->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])
+                ->where(function ($query) use ($service) {
+                    $query->where('validation_status', ValidationStatus::Pending->value);
+
+                    if ($service->usesApi()) {
+                        // API errors (e.g. product not mapped yet) are retried on the next click; sent ones never.
+                        $query->orWhere(fn ($q) => $q->where('validation_status', ValidationStatus::Validated->value)
+                            ->where('transfer_status', TransferStatus::Failed->value)
+                            ->whereNull('parcel_code'));
+                    }
+                })
                 ->orderBy('id')
                 ->get();
 
@@ -153,6 +164,10 @@ class ValidationController extends Controller
             }
 
             foreach ($pending as $order) {
+                if ($order->validation_status !== ValidationStatus::Pending) {
+                    continue;
+                }
+
                 DB::transaction(function () use ($order, $user) {
                     $order->update([
                         'validation_status' => ValidationStatus::Validated,
@@ -169,7 +184,9 @@ class ValidationController extends Controller
                 });
             }
 
-            $stats = $transferrer->transferBatch($service, $pending, $user);
+            $stats = $service->usesApi()
+                ? app(ApiOrderSender::class)->transferBatch($service, $pending, $user)
+                : $transferrer->transferBatch($service, $pending, $user);
             $marked = app(SourceRowMarker::class)->markLatest($service->fresh('sourceIntegration'), $pending->map->fresh());
         } finally {
             $lock->release();
