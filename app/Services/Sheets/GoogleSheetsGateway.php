@@ -33,4 +33,11 @@ interface GoogleSheetsGateway
      * @return array{updatedRange: string, updatedRows: int}
      */
     public function appendRows(string $spreadsheetId, string $worksheet, array $rows): array;
+
+    /**
+     * Set (or clear with null) the background of a whole 1-based row.
+     *
+     * @param  array{red: float, green: float, blue: float}|null  $rgb
+     */
+    public function setRowBackground(string $spreadsheetId, string $worksheet, int $row, ?array $rgb): void;
 }

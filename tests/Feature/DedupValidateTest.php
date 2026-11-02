@@ -124,6 +124,8 @@ class DedupValidateTest extends TestCase
         $this->assertSame(1, Order::query()->where('validation_status', ValidationStatus::Duplicate->value)->count());
         $this->assertSame(0, Order::query()->whereHas('items', fn ($q) => $q->where('name', 'old'))->count());
         $this->assertSame(['CP-1', 'mm5gd1rz', 'Fathi', '58450856', '', 'Médenine', '2.00', '82.00', ''], $gateway->sheets['dst'][1]);
+        $this->assertSame([['src', 6, 'green']], $gateway->backgrounds);
+        $this->assertSame(6, $service->sourceIntegration->fresh()->marked_row);
 
         // A new repeat of an already-pushed order arrives, plus one new order.
         $gateway->sheets['src'][] = ['02/11/2026 18:00:00', 'thermal', 'Gaston', '+255 078548598', 'A', '', '1', '85.000', ''];
@@ -132,9 +134,12 @@ class DedupValidateTest extends TestCase
         $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
             ->assertSessionHas('success', fn ($m) => str_contains($m, '1 transférée(s), 1 doublon(s) supprimé(s)'));
         $this->assertSame(4, $gateway->appended);
+        $this->assertSame([['src', 6, 'green'], ['src', 6, 'clear'], ['src', 8, 'green']], $gateway->backgrounds);
+        $this->assertSame(8, $service->sourceIntegration->fresh()->marked_row);
 
         $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))->assertRedirect();
         $this->assertSame(4, $gateway->appended);
+        $this->assertCount(3, $gateway->backgrounds);
     }
 
     public function test_show_page_handles_google_errors(): void
@@ -199,10 +204,38 @@ class DedupValidateTest extends TestCase
         $this->assertSame('85000.00', $gateway->sheets['dst'][2][7]);
         $this->assertSame(['1.00', '85000.00'], [$gateway->sheets['dst'][3][6], $gateway->sheets['dst'][3][7]]);
     }
+
+    public function test_push_succeeds_when_marking_the_source_row_fails(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(20, 0));
+
+        [$user, $country, $service, $gateway] = $this->setUpCodpayLike([
+            ['02/11/2026 05:00:00', 'rubber', 'Plain', '0700000001', 'Dar', '', '', '85000', ''],
+        ]);
+        $gateway->failFormatting = true;
+
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 transférée(s)') && ! str_contains($m, 'vert'));
+        $this->assertSame(1, $gateway->appended);
+        $this->assertNull($service->sourceIntegration->fresh()->marked_row);
+    }
 }
 
 class FakeBatchSheets implements GoogleSheetsGateway
 {
+    public array $backgrounds = [];
+
+    public bool $failFormatting = false;
+
+    public function setRowBackground(string $spreadsheetId, string $worksheet, int $row, ?array $rgb): void
+    {
+        if ($this->failFormatting) {
+            throw new \RuntimeException('format refused');
+        }
+
+        $this->backgrounds[] = [$spreadsheetId, $row, $rgb === null ? 'clear' : 'green'];
+    }
+
     public int $appended = 0;
 
     public function __construct(public array $sheets) {}
