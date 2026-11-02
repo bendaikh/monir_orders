@@ -66,12 +66,15 @@ class ServiceController extends Controller
     public function show(Country $country, PartnerService $service): View
     {
         $service->load(['sourceIntegration', 'destinationIntegration', 'columnMappings'])->loadCount('orders');
+        [$todayCount, $todayError] = self::liveTodayCount($service);
 
         return view('services.show', [
             'country' => $country,
             'service' => $service,
             'fields' => OrderFields::definitions(),
             'pendingCount' => $service->orders()->where('validation_status', ValidationStatus::Pending->value)->count(),
+            'todayCount' => $todayCount,
+            'todayError' => $todayError,
             'duplicateCount' => $service->orders()->where('validation_status', ValidationStatus::Duplicate->value)->count(),
         ]);
     }
@@ -108,5 +111,36 @@ class ServiceController extends Controller
         return back()->with('success', $service->is_active
             ? $service->name.' est maintenant actif.'
             : $service->name.' est maintenant inactif.');
+    }
+
+    /**
+     * Today's orders (Africa/Casablanca) counted live from the source sheet, cached ~60 s.
+     *
+     * @return array{0: int|null, 1: string|null}
+     */
+    public static function liveTodayCount(PartnerService $service): array
+    {
+        $today = now()->startOfDay();
+
+        try {
+            $count = \Illuminate\Support\Facades\Cache::remember(
+                self::todayCountCacheKey($service),
+                60,
+                fn () => app(\App\Services\Sheets\OrderImporter::class)->countForDate($service, $today),
+            );
+
+            return [(int) $count, null];
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [null, $exception instanceof \App\Services\Sheets\GoogleSheetsException
+                ? $exception->getMessage()
+                : 'Impossible de lire la feuille source pour le moment.'];
+        }
+    }
+
+    public static function todayCountCacheKey(PartnerService $service): string
+    {
+        return 'service-today-count-'.$service->id.'-'.now()->format('Y-m-d');
     }
 }

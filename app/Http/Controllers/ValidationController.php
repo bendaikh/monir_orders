@@ -12,6 +12,7 @@ use App\Models\Country;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Services\Sheets\OrderImporter;
 use App\Services\Sheets\OrderTransferrer;
 use App\Models\PartnerService;
 use App\Services\Orders\OrderFilters;
@@ -107,7 +108,7 @@ class ValidationController extends Controller
         return back()->with($failed > 0 ? 'warning' : 'success', $message);
     }
 
-    public function validateAll(Country $country, PartnerService $service, OrderTransferrer $transferrer): RedirectResponse
+    public function validateAll(Country $country, PartnerService $service, OrderTransferrer $transferrer, OrderImporter $importer): RedirectResponse
     {
         $lock = Cache::lock('service-validate-all-'.$service->id, 900);
 
@@ -118,13 +119,36 @@ class ValidationController extends Controller
         try {
             @set_time_limit(0);
             $user = request()->user();
+            $today = now()->startOfDay();
+            $lastId = (int) Order::query()->max('id');
+
+            // Pull today's rows straight from the source sheet. Rows already read are skipped
+            // (source fingerprint) and repeats (phone + product + day, incl. already-pushed orders)
+            // are marked « Doublon » and never sent.
+            $log = $importer->import($service, $user, 'validate-all', $today);
+            Cache::forget(ServiceController::todayCountCacheKey($service));
+
+            if ($log->result === 'failed') {
+                return back()->with('error', 'Lecture de la feuille source impossible : '.$log->message);
+            }
+
+            $importDuplicates = $service->orders()
+                ->where('id', '>', $lastId)
+                ->where('validation_status', ValidationStatus::Duplicate->value)
+                ->count();
+
             $pending = $service->orders()
                 ->where('validation_status', ValidationStatus::Pending->value)
+                ->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])
                 ->orderBy('id')
                 ->get();
 
             if ($pending->isEmpty()) {
-                return back()->with('success', 'Aucune commande en attente pour '.$service->name.'.');
+                return back()->with('success', sprintf(
+                    'Aucune nouvelle commande du jour à envoyer pour %s (%d doublon(s) supprimé(s)).',
+                    $service->name,
+                    $importDuplicates,
+                ));
             }
 
             foreach ($pending as $order) {
@@ -150,10 +174,10 @@ class ValidationController extends Controller
         }
 
         $message = sprintf(
-            '%d commande(s) validée(s) : %d transférée(s), %d doublon(s) non envoyé(s), %d échec(s).',
+            '%d commande(s) du jour validée(s) : %d transférée(s), %d doublon(s) supprimé(s) (non envoyés), %d échec(s).',
             $pending->count(),
             $stats['transferred'],
-            $stats['duplicates'],
+            $importDuplicates + $stats['duplicates'],
             $stats['failed'],
         );
 
