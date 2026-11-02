@@ -168,6 +168,37 @@ class DedupValidateTest extends TestCase
         $this->assertSame(0, $gateway->appended);
         $this->assertSame(TransferStatus::Transferred, Order::query()->sole()->transfer_status);
     }
+
+    public function test_quantity_equals_total_price_cells(): void
+    {
+        $this->assertSame(['2.00', '85000.00'], OrderNormalizer::quantityAndTotal('2=85000', 'comma'));
+        $this->assertSame(['2.00', '85000.00'], OrderNormalizer::quantityAndTotal(' 2 = 85.000 ', 'comma'));
+        $this->assertSame(['2.00', '85000.00'], OrderNormalizer::quantityAndTotal('2=85,000', 'comma'));
+        $this->assertSame(['3.00', '85000.00'], OrderNormalizer::quantityAndTotal('3 = 85 000', 'comma'));
+        $this->assertSame(['5.00', '345000.00'], OrderNormalizer::quantityAndTotal('5=345000', 'point'));
+        $this->assertSame([null, '85000.00'], OrderNormalizer::quantityAndTotal('85000', 'comma'));
+        $this->assertSame([null, '85000.00'], OrderNormalizer::quantityAndTotal('85,000', 'comma'));
+        $this->assertSame([null, null], OrderNormalizer::quantityAndTotal('', 'comma'));
+    }
+
+    public function test_quantity_from_price_cell_is_pushed_to_destination(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(20, 0));
+
+        [$user, $country, $service, $gateway] = $this->setUpCodpayLike([
+            ['02/11/2026 03:08:31', 'chicken', 'Damas', '0753670737', 'Tabora', '', '', '2=145000', ''],
+            ['02/11/2026 04:34:31', 'thermal', 'Listram', '0715700811', 'Masasi', '', '', '3 = 85.000', ''],
+            ['02/11/2026 05:00:00', 'rubber', 'Plain', '0700000001', 'Dar', '', '', '85000', ''],
+        ]);
+        $service->update(['decimal_format' => 'comma']);
+
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))->assertSessionHas('success');
+
+        $this->assertSame(['CP-1', 'chicken', 'Damas', '0753670737', '', 'Tabora', '2.00', '145000.00', ''], $gateway->sheets['dst'][1]);
+        $this->assertSame('3.00', $gateway->sheets['dst'][2][6]);
+        $this->assertSame('85000.00', $gateway->sheets['dst'][2][7]);
+        $this->assertSame(['1.00', '85000.00'], [$gateway->sheets['dst'][3][6], $gateway->sheets['dst'][3][7]]);
+    }
 }
 
 class FakeBatchSheets implements GoogleSheetsGateway

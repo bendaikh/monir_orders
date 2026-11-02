@@ -246,8 +246,13 @@ class OrderImporter
      */
     private function createOrder(PartnerService $service, array $values, string $reference, string $customer, int $line, string $hash): Order
     {
-        $quantity = OrderNormalizer::money($values['quantity'] ?? null, 'auto');
+        [$priceQuantity, $total] = OrderNormalizer::quantityAndTotal($values['total_amount'] ?? null, $service->decimal_format);
+        $quantity = OrderNormalizer::money($values['quantity'] ?? null, 'auto') ?? $priceQuantity;
         $unitPrice = OrderNormalizer::money($values['unit_price'] ?? null, $service->decimal_format);
+
+        if ($unitPrice === null && $total !== null && $priceQuantity !== null) {
+            $unitPrice = number_format((float) $total / (float) $priceQuantity, 2, '.', '');
+        }
         $product = trim((string) ($values['product'] ?? ''));
         $orderedAt = OrderNormalizer::date($values['ordered_at'] ?? null, $service->date_format);
 
@@ -279,7 +284,7 @@ class OrderImporter
             'phone' => $this->nullable($values['phone'] ?? null),
             'city' => $this->nullable($values['city'] ?? null),
             'address' => $this->nullable($values['address'] ?? null),
-            'total_amount' => OrderNormalizer::money($values['total_amount'] ?? null, $service->decimal_format),
+            'total_amount' => $total,
             'ordered_at' => $orderedAt,
             'received_at' => now(),
             'validation_status' => $original ? ValidationStatus::Duplicate : ValidationStatus::Pending,
@@ -300,7 +305,7 @@ class OrderImporter
                 'name' => $product,
                 'quantity' => $qty,
                 'unit_price' => $price,
-                'line_total' => $price === null ? null : number_format($qty * $price, 2, '.', ''),
+                'line_total' => $total !== null && $priceQuantity !== null ? $total : ($price === null ? null : number_format($qty * $price, 2, '.', '')),
             ]);
         }
 
