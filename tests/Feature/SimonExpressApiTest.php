@@ -167,4 +167,20 @@ class SimonExpressApiTest extends TestCase
         $this->assertSame('Njombe', $m->fuzzy('WAnging,ombe mdandu'));
         $this->assertSame('MBEYA', $m->fuzzy('Mby chunya'));
     }
+
+    public function test_lists_show_api_status_instead_of_destination_sheet(): void
+    {
+        [$user, $country, $service] = $this->setUpApiService([]);
+        $service->sourceIntegration->update(['connection_status' => 'connected']);
+
+        $this->actingAs($user)->get(route('countries.services.index', $country))
+            ->assertOk()->assertSee('Simon Express (API) · Clé enregistrée · non testée')->assertSee('R')->assertDontSee('Onglet non défini');
+
+        Http::fake(['simonexpress.net/get_lead*' => Http::response(['success' => false], 404)]);
+        $this->actingAs($user)->post(route('countries.services.api.test', [$country, $service]));
+
+        foreach ([route('countries.services.index', $country), route('countries.sheets.index', $country), route('countries.services.show', [$country, $service])] as $url) {
+            $this->actingAs($user)->get($url)->assertOk()->assertSee('Simon Express (API) · Connecté')->assertDontSee('Onglet non défini');
+        }
+    }
 }

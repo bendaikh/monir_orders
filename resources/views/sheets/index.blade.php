@@ -36,8 +36,7 @@
                     </div>
                     <div class="rounded-xl border border-slate-200 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Destination — commandes validées</p>
-                        <p class="mt-2 text-sm text-slate-700">{{ $service->destinationIntegration?->worksheet_name ?: 'Onglet non défini' }}</p>
-                        <div class="mt-2"><x-badge :tone="$service->destinationIntegration?->statusTone() ?? 'slate'">{{ $service->destinationIntegration?->statusLabel() ?? 'Non configuré' }}</x-badge></div>
+                        <div class="mt-2"><x-destination-status :service="$service" /></div>
                         <div class="mt-4 flex flex-wrap gap-2">
                             <form method="POST" action="{{ route('countries.services.test', [$country, $service, 'destination']) }}">@csrf<x-button variant="secondary">Tester la connexion</x-button></form>
                             <form method="POST" action="{{ route('countries.services.test-send', [$country, $service]) }}">@csrf<x-button variant="secondary">Tester l'envoi</x-button></form>

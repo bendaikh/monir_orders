@@ -53,8 +53,7 @@
                                 <p class="mt-1 text-xs text-slate-500">{{ $service->sourceIntegration?->worksheet_name ?: 'Onglet non défini' }}</p>
                             </td>
                             <td class="hidden px-4 py-3 lg:table-cell">
-                                <x-badge :tone="$service->destinationIntegration?->statusTone() ?? 'slate'">{{ $service->destinationIntegration?->statusLabel() ?? 'Non configuré' }}</x-badge>
-                                <p class="mt-1 text-xs text-slate-500">{{ $service->destinationIntegration?->worksheet_name ?: 'Onglet non défini' }}</p>
+                                <x-destination-status :service="$service" />
                             </td>
                             <td class="px-4 py-3">{{ $service->orders_count }}</td>
                             <td class="px-4 py-3"><x-badge :tone="$service->is_active ? 'green' : 'slate'">{{ $service->is_active ? 'Actif' : 'Inactif' }}</x-badge></td>
