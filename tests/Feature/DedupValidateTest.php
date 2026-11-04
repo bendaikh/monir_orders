@@ -142,6 +142,25 @@ class DedupValidateTest extends TestCase
         $this->assertCount(3, $gateway->backgrounds);
     }
 
+    public function test_validate_all_is_queued_unique_and_reports_status(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+        [$user, $country, $service] = $this->setUpCodpayLike([]);
+
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))
+            ->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'arrière-plan'));
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\ValidateAllServiceOrdersJob::class, 1);
+        $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldBeUnique::class, new \App\Jobs\ValidateAllServiceOrdersJob($service->id, $user->id, 1));
+
+        // Second click while the first is still pending: no second job.
+        $this->actingAs($user)->post(route('countries.services.validate-all', [$country, $service]))->assertSessionHas('warning');
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\ValidateAllServiceOrdersJob::class, 1);
+
+        $this->actingAs($user)->getJson(route('countries.services.push-status', [$country, $service]))
+            ->assertOk()->assertJsonPath('run.status', 'pending')->assertJsonPath('run.active', true);
+        $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))->assertOk()->assertSee('Dernier envoi');
+    }
+
     public function test_show_page_handles_google_errors(): void
     {
         [$user, $country, $service] = $this->setUpCodpayLike([]);

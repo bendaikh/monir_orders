@@ -21,6 +21,9 @@ use App\Models\PartnerService;
 use App\Services\Orders\OrderFilters;
 use App\Services\Orders\OrderStats;
 use App\Services\Orders\OrderWorkflow;
+use App\Jobs\ValidateAllServiceOrdersJob;
+use App\Models\PushRun;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -111,96 +114,36 @@ class ValidationController extends Controller
         return back()->with($failed > 0 ? 'warning' : 'success', $message);
     }
 
-    public function validateAll(Country $country, PartnerService $service, OrderTransferrer $transferrer, OrderImporter $importer): RedirectResponse
+    public function validateAll(Country $country, PartnerService $service): RedirectResponse
     {
-        $lock = Cache::lock('service-validate-all-'.$service->id, 900);
-
-        if (! $lock->get()) {
-            return back()->with('error', 'Une validation globale est déjà en cours pour ce service.');
+        if ($active = PushRun::activeFor($service->id)) {
+            return back()->with('warning', 'Un envoi est déjà en cours pour ce service (lancé le '.$active->created_at->format('d/m/Y H:i').'). Le résultat s\'affichera ci-dessous.');
         }
 
-        try {
-            @set_time_limit(0);
-            $user = request()->user();
-            $today = now()->startOfDay();
-            $lastId = (int) Order::query()->max('id');
+        $run = PushRun::query()->create([
+            'service_id' => $service->id,
+            'user_id' => request()->user()->id,
+            'status' => PushRun::PENDING,
+        ]);
 
-            // Pull today's rows straight from the source sheet. Rows already read are skipped
-            // (source fingerprint) and repeats (phone + product + day, incl. already-pushed orders)
-            // are marked « Doublon » and never sent.
-            $log = $importer->import($service, $user, 'validate-all', $today);
-            Cache::forget(ServiceController::todayCountCacheKey($service));
+        // Queued: the worker (cron queue:work) does the import, dedup, push and green marking.
+        // ShouldBeUnique prevents two pushes for the same service. With the "sync" driver (tests) it runs right here.
+        ValidateAllServiceOrdersJob::dispatch($service->id, request()->user()->id, $run->id);
 
-            if ($log->result === 'failed') {
-                return back()->with('error', 'Lecture de la feuille source impossible : '.$log->message);
-            }
+        $run->refresh();
 
-            $importDuplicates = $service->orders()
-                ->where('id', '>', $lastId)
-                ->where('validation_status', ValidationStatus::Duplicate->value)
-                ->count();
-
-            $pending = $service->orders()
-                ->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])
-                ->where(function ($query) use ($service) {
-                    $query->where('validation_status', ValidationStatus::Pending->value);
-
-                    if ($service->usesApi()) {
-                        // API errors (e.g. product not mapped yet) are retried on the next click; sent ones never.
-                        $query->orWhere(fn ($q) => $q->where('validation_status', ValidationStatus::Validated->value)
-                            ->where('transfer_status', TransferStatus::Failed->value)
-                            ->whereNull('parcel_code'));
-                    }
-                })
-                ->orderBy('id')
-                ->get();
-
-            if ($pending->isEmpty()) {
-                return back()->with('success', sprintf(
-                    'Aucune nouvelle commande du jour à envoyer pour %s (%d doublon(s) supprimé(s)).',
-                    $service->name,
-                    $importDuplicates,
-                ));
-            }
-
-            foreach ($pending as $order) {
-                if ($order->validation_status !== ValidationStatus::Pending) {
-                    continue;
-                }
-
-                DB::transaction(function () use ($order, $user) {
-                    $order->update([
-                        'validation_status' => ValidationStatus::Validated,
-                        'validated_at' => now(),
-                        'validated_by' => $user->id,
-                        'rejection_reason' => null,
-                        'rejected_at' => null,
-                    ]);
-
-                    $order->validationLogs()->create([
-                        'user_id' => $user->id,
-                        'decision' => 'validated',
-                    ]);
-                });
-            }
-
-            $stats = $service->usesApi()
-                ? app(ApiOrderSender::class)->transferBatch($service, $pending, $user)
-                : $transferrer->transferBatch($service, $pending, $user);
-            $marked = app(SourceRowMarker::class)->markLatest($service->fresh('sourceIntegration'), $pending->map->fresh());
-        } finally {
-            $lock->release();
+        if (in_array($run->status, [PushRun::DONE, PushRun::FAILED], true)) {
+            return back()->with($run->tone ?? 'success', $run->message);
         }
 
-        $message = sprintf(
-            '%d commande(s) du jour validée(s) : %d transférée(s), %d doublon(s) supprimé(s) (non envoyés), %d échec(s).',
-            $pending->count(),
-            $stats['transferred'],
-            $importDuplicates + $stats['duplicates'],
-            $stats['failed'],
-        ).($marked ? ' Dernière commande envoyée marquée en vert (ligne '.$marked.' de la feuille source).' : '');
+        return back()->with('success', 'Envoi lancé en arrière-plan pour '.$service->name.'. Vous pouvez rester sur cette page : le résultat s\'affichera automatiquement.');
+    }
 
-        return back()->with($stats['failed'] > 0 ? 'warning' : 'success', $message);
+    public function pushStatus(Country $country, PartnerService $service): JsonResponse
+    {
+        $run = PushRun::query()->where('service_id', $service->id)->latest('id')->first();
+
+        return response()->json(['run' => $run?->toPayload()]);
     }
 
     public function retry(Country $country, Order $order): RedirectResponse

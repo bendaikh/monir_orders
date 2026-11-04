@@ -32,6 +32,51 @@
         </div>
     </div>
 
+    <div
+        class="mb-6"
+        x-data="{
+            run: @js($lastRun?->toPayload()),
+            timer: null,
+            init() { if (this.run && this.run.active) this.poll(); },
+            poll() {
+                this.timer = setInterval(async () => {
+                    try {
+                        const r = await fetch(@js(route('countries.services.push-status', [$country, $service])), { headers: { 'Accept': 'application/json' } });
+                        const data = await r.json();
+                        const wasActive = this.run && this.run.active;
+                        this.run = data.run;
+                        if (!this.run || !this.run.active) {
+                            clearInterval(this.timer);
+                            if (wasActive) setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } catch (e) {}
+                }, 4000);
+            },
+        }"
+        x-show="run"
+        x-cloak
+    >
+        <div class="rounded-2xl border px-4 py-3 text-sm"
+             :class="{
+                'border-blue-200 bg-blue-50 text-blue-800': run && run.active,
+                'border-green-200 bg-green-50 text-green-800': run && !run.active && run.tone === 'success',
+                'border-orange-200 bg-orange-50 text-orange-800': run && !run.active && run.tone === 'warning',
+                'border-red-200 bg-red-50 text-red-800': run && !run.active && (run.tone === 'error' || run.status === 'failed'),
+             }">
+            <div class="font-semibold">
+                Dernier envoi « Valider et push » :
+                <span x-text="run ? (run.active ? run.label + '…' : run.label) : ''"></span>
+                <span class="font-normal text-xs" x-text="run ? '(lancé le ' + run.created_at + (run.finished_at ? ', terminé le ' + run.finished_at : '') + ')' : ''"></span>
+            </div>
+            <template x-if="run && run.active">
+                <p class="mt-1">L'envoi tourne en arrière-plan. Cette zone se met à jour toute seule, inutile de recharger la page.</p>
+            </template>
+            <template x-if="run && !run.active">
+                <p class="mt-1" x-text="run.message || run.error || (run.status === 'pending' || run.status === 'running' ? 'Envoi interrompu (aucune réponse du serveur depuis plus de 30 minutes).' : '')"></p>
+            </template>
+        </div>
+    </div>
+
     <div class="grid gap-4 lg:grid-cols-3">
         <x-card title="Informations">
             <dl class="space-y-3 text-sm">

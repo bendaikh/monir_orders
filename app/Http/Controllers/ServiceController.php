@@ -76,6 +76,7 @@ class ServiceController extends Controller
             'todayCount' => $todayCount,
             'todayError' => $todayError,
             'duplicateCount' => $service->orders()->where('validation_status', ValidationStatus::Duplicate->value)->count(),
+            'lastRun' => \App\Models\PushRun::query()->where('service_id', $service->id)->latest('id')->first(),
         ]);
     }
 
