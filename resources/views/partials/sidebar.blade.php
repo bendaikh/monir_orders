@@ -61,9 +61,6 @@
                 <a href="{{ route('countries.index') }}" @click="sidebar = false" class="{{ request()->routeIs('countries.*') ? $active : $link }}">
                     <x-icon name="globe" /> Gestion des pays
                 </a>
-                <a href="{{ route('orders.global') }}" @click="sidebar = false" class="{{ request()->routeIs('orders.global') ? $active : $link }}">
-                    <x-icon name="orders" /> Gestion des commandes
-                </a>
                 <a href="{{ route('settings.index') }}" @click="sidebar = false" class="{{ request()->routeIs('settings.*') ? $active : $link }}">
                     <x-icon name="settings" /> Paramètres
                 </a>

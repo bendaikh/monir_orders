@@ -65,12 +65,12 @@
                             <td class="hidden px-4 py-3 md:table-cell">{{ $service->created_at->translatedFormat('d M Y') }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2 text-sm">
-                                    <a class="font-medium text-blue-700" href="{{ route('countries.services.show', [$country, $service]) }}">Détails</a>
-                                    <a class="font-medium text-slate-700" href="{{ route('countries.services.edit', [$country, $service]) }}">Modifier</a>
+                                    <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Détails" aria-label="Détails" href="{{ route('countries.services.show', [$country, $service]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
+                                    <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-700" title="Modifier" aria-label="Modifier" href="{{ route('countries.services.edit', [$country, $service]) }}"><x-icon name="pencil" class="h-5 w-5" /></a>
                                     <form method="POST" action="{{ route('countries.services.toggle', [$country, $service]) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <button class="font-medium text-slate-600" type="submit">{{ $service->is_active ? 'Désactiver' : 'Activer' }}</button>
+                                        <button class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 {{ $service->is_active ? 'text-slate-600' : 'text-green-700' }}" type="submit" title="{{ $service->is_active ? 'Désactiver' : 'Activer' }}" aria-label="{{ $service->is_active ? 'Désactiver' : 'Activer' }}"><x-icon name="power" class="h-5 w-5" /></button>
                                     </form>
                                 </div>
                             </td>
