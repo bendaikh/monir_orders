@@ -159,6 +159,13 @@ class DedupValidateTest extends TestCase
         $this->actingAs($user)->getJson(route('countries.services.push-status', [$country, $service]))
             ->assertOk()->assertJsonPath('run.status', 'pending')->assertJsonPath('run.active', true);
         $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))->assertOk()->assertSee('Dernier envoi');
+
+        // Worker finishes: the next poll flashes the report once, and the reloaded page shows the toast.
+        \App\Models\PushRun::query()->latest('id')->first()->update(['status' => 'done', 'tone' => 'success', 'today_count' => 5, 'transferred' => 3, 'duplicates' => 1, 'failed' => 1, 'failures' => [['ref' => 'CP-9', 'name' => 'Zed', 'reason' => 'bad city']], 'finished_at' => now()]);
+        $this->actingAs($user)->getJson(route('countries.services.push-status', [$country, $service]))->assertJsonPath('run.transferred', 3);
+        $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))
+            ->assertSee('Envoyées avec succès')->assertSee('bad city');
+        $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))->assertDontSee('Envoyées avec succès');
     }
 
     public function test_show_page_handles_google_errors(): void

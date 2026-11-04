@@ -19,7 +19,7 @@ class PushRun extends Model
 
     protected function casts(): array
     {
-        return ['started_at' => 'datetime', 'finished_at' => 'datetime'];
+        return ['started_at' => 'datetime', 'finished_at' => 'datetime', 'reported_at' => 'datetime', 'failures' => 'array'];
     }
 
     public function service(): BelongsTo
@@ -68,6 +68,8 @@ class PushRun extends Model
             'active' => $this->isActive(),
             'tone' => $this->tone,
             'total' => $this->total,
+            'today_count' => $this->today_count,
+            'failures' => $this->failures ?? [],
             'transferred' => $this->transferred,
             'duplicates' => $this->duplicates,
             'failed' => $this->failed,
