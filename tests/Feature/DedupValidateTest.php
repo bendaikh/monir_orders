@@ -127,6 +127,11 @@ class DedupValidateTest extends TestCase
         $this->assertSame([['src', 6, 'green']], $gateway->backgrounds);
         $this->assertSame(6, $service->sourceIntegration->fresh()->marked_row);
 
+        // After the push the counter only shows what is left to send.
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))
+            ->assertSee('Valider toutes les commandes en attente (0)');
+
         // A new repeat of an already-pushed order arrives, plus one new order.
         $gateway->sheets['src'][] = ['02/11/2026 18:00:00', 'thermal', 'Gaston', '+255 078548598', 'A', '', '1', '85.000', ''];
         $gateway->sheets['src'][] = ['02/11/2026 19:00:00', 'thermal', 'Nouveau', '0799999999', 'C', '', '1', '85.000', ''];

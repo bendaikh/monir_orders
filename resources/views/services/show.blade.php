@@ -21,7 +21,7 @@
                     @if ($todayError)
                         <span class="text-red-600">Comptage indisponible : {{ $todayError }}</span>
                     @else
-                        Commandes du {{ now()->format('d/m/Y') }} dans la feuille source (mis à jour chaque minute).
+                        Commandes du {{ now()->format('d/m/Y') }} pas encore envoyées (les commandes déjà envoyées ne sont jamais renvoyées).
                     @endif
                 </p>
             </form>

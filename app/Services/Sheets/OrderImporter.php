@@ -31,6 +31,20 @@ class OrderImporter
         $service->load(['sourceIntegration', 'columnMappings', 'country']);
         [$rows, $index, $mapping] = $this->readSource($service);
         $count = 0;
+        $occurrences = [];
+
+        // Rows already handled (sent, duplicate, rejected…) are not counted: only what a click would still push.
+        // Pending orders and, for API services, failed sends without a parcel code are still to push.
+        $handled = Order::query()
+            ->where('service_id', $service->id)
+            ->whereNotNull('source_hash')
+            ->where('validation_status', '!=', ValidationStatus::Pending->value)
+            ->when($service->usesApi(), fn ($q) => $q->where(fn ($w) => $w
+                ->where('validation_status', '!=', ValidationStatus::Validated->value)
+                ->orWhere('transfer_status', '!=', \App\Enums\TransferStatus::Failed->value)
+                ->orWhereNotNull('parcel_code')))
+            ->pluck('source_hash')
+            ->flip();
 
         foreach (array_slice($rows, 1) as $row) {
             if ($this->rowIsEmpty($row)) {
@@ -42,6 +56,14 @@ class OrderImporter
             if (trim((string) ($values['customer_name'] ?? '')) === ''
                 || ! $this->isOnDate($service, $values, $date)
                 || OrderNormalizer::isExcluded($service, $values['product'] ?? null)) {
+                continue;
+            }
+
+            // Same fingerprint as pull().
+            $content = sha1(json_encode(array_map(fn ($cell) => trim((string) $cell), $row), JSON_UNESCAPED_UNICODE));
+            $occurrences[$content] = ($occurrences[$content] ?? 0) + 1;
+
+            if (isset($handled[hash('sha256', $content.'#'.$occurrences[$content])])) {
                 continue;
             }
 
