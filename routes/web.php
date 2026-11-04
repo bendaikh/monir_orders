@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::patch('/services/{service}/statut', [ServiceController::class, 'toggle'])->name('services.toggle');
         Route::post('/services/{service}/valider-tout', [ValidationController::class, 'validateAll'])->name('services.validate-all');
+        Route::get('/services/{service}/envoi-statut', [ValidationController::class, 'pushStatus'])->name('services.push-status');
         Route::get('/services/{service}/systeme', [ApiDestinationController::class, 'edit'])->name('services.api.edit');
         Route::put('/services/{service}/systeme', [ApiDestinationController::class, 'update'])->name('services.api.update');
         Route::post('/services/{service}/systeme/tester', [ApiDestinationController::class, 'test'])->name('services.api.test');
