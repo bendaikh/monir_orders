@@ -6,8 +6,21 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Brand: the whole app's "blue" accents use the indigo scale. */
+    --color-blue-50: var(--color-indigo-50);
+    --color-blue-100: var(--color-indigo-100);
+    --color-blue-200: var(--color-indigo-200);
+    --color-blue-300: var(--color-indigo-300);
+    --color-blue-400: var(--color-indigo-400);
+    --color-blue-500: var(--color-indigo-500);
+    --color-blue-600: var(--color-indigo-600);
+    --color-blue-700: var(--color-indigo-700);
+    --color-blue-800: var(--color-indigo-800);
+    --color-blue-900: var(--color-indigo-900);
+
+    --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -4px rgb(15 23 42 / 0.08);
 }
 
 @layer base {
@@ -17,5 +30,47 @@
 
     html {
         scroll-behavior: smooth;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+
+    body {
+        background-color: var(--color-slate-50);
+        background-image: radial-gradient(1200px 400px at 100% -10%, rgb(99 102 241 / 0.06), transparent 60%);
+        background-attachment: fixed;
+    }
+
+    h1, h2, h3 {
+        letter-spacing: -0.01em;
+    }
+
+    /* Tables across the app */
+    table thead th {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-slate-500);
+        white-space: nowrap;
+    }
+
+    table thead {
+        background-color: rgb(248 250 252 / 0.8);
+    }
+
+    table tbody tr {
+        transition: background-color 120ms ease;
+    }
+
+    table tbody tr:hover {
+        background-color: rgb(238 242 255 / 0.45);
+    }
+
+    input[type='checkbox'] {
+        accent-color: var(--color-indigo-600);
+    }
+
+    ::selection {
+        background: var(--color-indigo-100);
+        color: var(--color-indigo-900);
     }
 }

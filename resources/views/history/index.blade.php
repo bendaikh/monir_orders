@@ -17,7 +17,7 @@
         @include('partials.order-filters', [
             'resetUrl' => route('countries.history.index', [$country, 'tab' => 'orders']),
         ])
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-soft">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -77,7 +77,7 @@
                 <x-button href="{{ route('countries.history.index', [$country, 'tab' => 'sync']) }}" variant="ghost">Réinitialiser</x-button>
             </div>
         </form>
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-soft">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

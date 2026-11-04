@@ -26,7 +26,7 @@
         </x-button>
     </div>
 
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-soft">
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -64,7 +64,7 @@
                             <td class="px-4 py-3"><x-badge :tone="$service->is_active ? 'green' : 'slate'">{{ $service->is_active ? 'Actif' : 'Inactif' }}</x-badge></td>
                             <td class="hidden px-4 py-3 md:table-cell">{{ $service->created_at->translatedFormat('d M Y') }}</td>
                             <td class="px-4 py-3">
-                                <div class="flex flex-wrap gap-2 text-sm">
+                                <div class="flex flex-nowrap items-center gap-1 text-sm">
                                     <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Détails" aria-label="Détails" href="{{ route('countries.services.show', [$country, $service]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
                                     <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-700" title="Modifier" aria-label="Modifier" href="{{ route('countries.services.edit', [$country, $service]) }}"><x-icon name="pencil" class="h-5 w-5" /></a>
                                     <form method="POST" action="{{ route('countries.services.toggle', [$country, $service]) }}">

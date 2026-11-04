@@ -38,7 +38,7 @@
             <x-button x-bind:disabled="selected.length === 0">Valider les commandes sélectionnées</x-button>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-soft">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -74,7 +74,7 @@
                                 <td class="hidden px-4 py-3 lg:table-cell">{{ $order->received_at?->translatedFormat('d M Y') }}</td>
                                 <td class="px-4 py-3"><x-status-badge :status="$order->displayStatus()" /></td>
                                 <td class="px-4 py-3">
-                                    <div class="flex flex-wrap gap-2">
+                                    <div class="flex flex-nowrap items-center gap-1">
                                         <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Détails" aria-label="Détails" href="{{ route('countries.orders.show', [$country, $order]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
                                         @if ($order->canValidate())
                                             <button form="validate-{{ $order->id }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-green-700" type="submit" title="Valider" aria-label="Valider"><x-icon name="check-circle" class="h-5 w-5" /></button>
