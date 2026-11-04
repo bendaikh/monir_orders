@@ -75,15 +75,15 @@
                                 <td class="px-4 py-3"><x-status-badge :status="$order->displayStatus()" /></td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-2">
-                                        <a class="text-sm font-medium text-blue-700" href="{{ route('countries.orders.show', [$country, $order]) }}">Détails</a>
+                                        <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Détails" aria-label="Détails" href="{{ route('countries.orders.show', [$country, $order]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
                                         @if ($order->canValidate())
-                                            <button form="validate-{{ $order->id }}" class="text-sm font-medium text-green-700" type="submit">Valider</button>
+                                            <button form="validate-{{ $order->id }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-green-700" type="submit" title="Valider" aria-label="Valider"><x-icon name="check-circle" class="h-5 w-5" /></button>
                                         @endif
                                         @if ($order->canReject())
-                                            <button type="button" class="text-sm font-medium text-red-700" @click="openReject(@js(route('countries.validation.reject', [$country, $order])), @js($order->reference))">Rejeter</button>
+                                            <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-red-700" title="Rejeter" aria-label="Rejeter" @click="openReject(@js(route('countries.validation.reject', [$country, $order])), @js($order->reference))"><x-icon name="x-circle" class="h-5 w-5" /></button>
                                         @endif
                                         @if ($order->canRetryTransfer() && ! $order->canValidate())
-                                            <button form="retry-{{ $order->id }}" class="text-sm font-medium text-purple-700" type="submit">Réessayer</button>
+                                            <button form="retry-{{ $order->id }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-purple-700" type="submit" title="Réessayer" aria-label="Réessayer"><x-icon name="refresh" class="h-5 w-5" /></button>
                                         @endif
                                     </div>
                                 </td>

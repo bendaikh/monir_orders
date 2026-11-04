@@ -68,12 +68,12 @@
                                 <td class="hidden px-4 py-3 lg:table-cell">{{ $country->created_at->translatedFormat('d M Y') }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-2">
-                                        <x-button href="{{ route('countries.dashboard', $country) }}" variant="secondary">Espace</x-button>
-                                        <button type="button" class="text-sm font-medium text-blue-700 hover:text-blue-800" @click="openEdit(@js(route('countries.update', $country)), @js(['name' => $country->name, 'code' => $country->code, 'currency' => $country->currency, 'description' => $country->description, 'is_active' => $country->is_active]))">Modifier</button>
+                                        <a href="{{ route('countries.dashboard', $country) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200" title="Espace" aria-label="Espace"><x-icon name="open" class="h-5 w-5" /></a>
+                                        <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700 hover:text-blue-800" title="Modifier" aria-label="Modifier" @click="openEdit(@js(route('countries.update', $country)), @js(['name' => $country->name, 'code' => $country->code, 'currency' => $country->currency, 'description' => $country->description, 'is_active' => $country->is_active]))"><x-icon name="pencil" class="h-5 w-5" /></button>
                                         <form method="POST" action="{{ route('countries.toggle', $country) }}" @submit="if (!confirm(@js($country->is_active ? 'Désactiver ce pays ?' : 'Activer ce pays ?'))) $event.preventDefault()">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="text-sm font-medium text-slate-600 hover:text-slate-900">{{ $country->is_active ? 'Désactiver' : 'Activer' }}</button>
+                                            <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 {{ $country->is_active ? 'text-slate-600' : 'text-green-700' }} hover:text-slate-900" title="{{ $country->is_active ? 'Désactiver' : 'Activer' }}" aria-label="{{ $country->is_active ? 'Désactiver' : 'Activer' }}"><x-icon name="power" class="h-5 w-5" /></button>
                                         </form>
                                     </div>
                                 </td>

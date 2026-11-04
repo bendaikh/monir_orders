@@ -58,7 +58,7 @@
                             <td class="hidden px-4 py-3 lg:table-cell">{{ $order->ordered_at?->translatedFormat('d M Y') ?: '—' }}</td>
                             <td class="px-4 py-3"><x-status-badge :status="$order->displayStatus()" /></td>
                             <td class="px-4 py-3">
-                                <a class="text-sm font-medium text-blue-700" href="{{ route('countries.orders.show', [$orderCountry, $order]) }}">Consulter</a>
+                                <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Consulter" aria-label="Consulter" href="{{ route('countries.orders.show', [$orderCountry, $order]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
                             </td>
                         </tr>
                     @empty
