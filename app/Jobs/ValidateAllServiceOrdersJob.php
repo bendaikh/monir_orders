@@ -105,6 +105,7 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
 
             if ($pending->isEmpty()) {
                 $run->duplicates = $importDuplicates;
+                $run->today_count = $service->orders()->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])->count();
                 $this->finish($run, 'success', sprintf(
                     'Aucune nouvelle commande du jour à envoyer pour %s (%d doublon(s) supprimé(s)).',
                     $service->name,
@@ -148,7 +149,18 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
                 $stats['failed'],
             ).($marked ? ' Dernière commande envoyée marquée en vert (ligne '.$marked.' de la feuille source).' : '');
 
+            $failures = $pending->map->fresh()
+                ->filter(fn ($o) => $o && $o->transfer_status === TransferStatus::Failed)
+                ->take(20)
+                ->map(fn ($o) => [
+                    'ref' => $o->reference ?: ('#'.$o->id),
+                    'name' => $o->customer_name,
+                    'reason' => \Illuminate\Support\Str::limit((string) ($o->api_error ?: $o->transferLogs()->latest()->value('message') ?: 'Erreur inconnue'), 200),
+                ])->values()->all();
+
             $run->fill([
+                'failures' => $failures,
+                'today_count' => $service->orders()->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])->count(),
                 'total' => $pending->count(),
                 'transferred' => $stats['transferred'],
                 'duplicates' => $importDuplicates + $stats['duplicates'],

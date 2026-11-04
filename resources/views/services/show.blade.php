@@ -47,7 +47,7 @@
                         this.run = data.run;
                         if (!this.run || !this.run.active) {
                             clearInterval(this.timer);
-                            if (wasActive) setTimeout(() => window.location.reload(), 1500);
+                            if (wasActive) window.location.reload();
                         }
                     } catch (e) {}
                 }, 4000);
@@ -72,7 +72,18 @@
                 <p class="mt-1">L'envoi tourne en arrière-plan. Cette zone se met à jour toute seule, inutile de recharger la page.</p>
             </template>
             <template x-if="run && !run.active">
-                <p class="mt-1" x-text="run.message || run.error || (run.status === 'pending' || run.status === 'running' ? 'Envoi interrompu (aucune réponse du serveur depuis plus de 30 minutes).' : '')"></p>
+                <div>
+                    <p class="mt-1" x-text="run.message || run.error || 'Envoi interrompu (aucune réponse du serveur depuis plus de 30 minutes).'"></p>
+                    <div class="mt-2 flex flex-wrap gap-4 font-medium">
+                        <span>Commandes du jour : <b x-text="run.today_count ?? run.total"></b></span>
+                        <span>Envoyées : <b x-text="run.transferred"></b></span>
+                        <span>Doublons : <b x-text="run.duplicates"></b></span>
+                        <span>Échecs : <b x-text="run.failed"></b></span>
+                    </div>
+                    <ul class="mt-2 list-disc pl-5 text-xs" x-show="run.failures && run.failures.length">
+                        <template x-for="f in (run.failures || [])"><li x-text="f.ref + ' ' + (f.name || '') + ' : ' + f.reason"></li></template>
+                    </ul>
+                </div>
             </template>
         </div>
     </div>

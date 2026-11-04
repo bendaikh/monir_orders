@@ -133,7 +133,9 @@ class ValidationController extends Controller
         $run->refresh();
 
         if (in_array($run->status, [PushRun::DONE, PushRun::FAILED], true)) {
-            return back()->with($run->tone ?? 'success', $run->message);
+            $run->update(['reported_at' => now()]);
+
+            return back()->with($run->tone ?? 'success', $run->message)->with('push_report', $run->toPayload() + ['service' => $service->name]);
         }
 
         return back()->with('success', 'Envoi lancé en arrière-plan pour '.$service->name.'. Vous pouvez rester sur cette page : le résultat s\'affichera automatiquement.');
@@ -142,6 +144,12 @@ class ValidationController extends Controller
     public function pushStatus(Country $country, PartnerService $service): JsonResponse
     {
         $run = PushRun::query()->where('service_id', $service->id)->latest('id')->first();
+
+        // First time a finished run is seen: flash it so the toast slides in after the auto-reload.
+        if ($run && ! $run->isActive() && $run->reported_at === null) {
+            $run->update(['reported_at' => now()]);
+            session()->flash('push_report', $run->toPayload() + ['service' => $service->name]);
+        }
 
         return response()->json(['run' => $run?->toPayload()]);
     }

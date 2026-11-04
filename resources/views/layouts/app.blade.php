@@ -24,6 +24,7 @@
                 </div>
             @endif
             @include('partials.flash')
+            @include('partials.push-toast')
             @yield('content')
         </main>
     </div>
