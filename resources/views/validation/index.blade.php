@@ -85,6 +85,9 @@
                                         @if ($order->canRetryTransfer() && ! $order->canValidate())
                                             <button form="retry-{{ $order->id }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-purple-700" type="submit" title="Réessayer" aria-label="Réessayer"><x-icon name="refresh" class="h-5 w-5" /></button>
                                         @endif
+                                        @can('delete', $order)
+                                            <button form="delete-{{ $order->id }}" type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-50 text-red-600" title="Supprimer" aria-label="Supprimer"><x-icon name="trash" class="h-5 w-5" /></button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -128,5 +131,11 @@
                 @csrf
             </form>
         @endif
+        @can('delete', $order)
+            <form id="delete-{{ $order->id }}" method="POST" action="{{ route('countries.orders.destroy', [$country, $order]) }}" onsubmit="return confirm(@js('Supprimer la commande '.$order->reference.' ? Elle n\'a pas été envoyée.'))">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endcan
     @endforeach
 @endsection
