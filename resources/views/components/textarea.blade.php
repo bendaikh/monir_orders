@@ -5,7 +5,7 @@
     <textarea
         name="{{ $name }}"
         id="{{ $name }}"
-        {{ $attributes->merge(['class' => 'min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20']) }}
+        {{ $attributes->merge(['class' => 'min-h-28 w-full rounded-lg border border-slate-300/80 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15']) }}
     >{{ old($name, $value) }}</textarea>
     @error($name)
         <span class="mt-1 block text-sm text-red-600">{{ $message }}</span>

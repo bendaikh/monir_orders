@@ -32,7 +32,7 @@
             </button>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-soft">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -67,7 +67,7 @@
                                 </td>
                                 <td class="hidden px-4 py-3 lg:table-cell">{{ $country->created_at->translatedFormat('d M Y') }}</td>
                                 <td class="px-4 py-3">
-                                    <div class="flex flex-wrap gap-2">
+                                    <div class="flex flex-nowrap items-center gap-1">
                                         <a href="{{ route('countries.dashboard', $country) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200" title="Espace" aria-label="Espace"><x-icon name="open" class="h-5 w-5" /></a>
                                         <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700 hover:text-blue-800" title="Modifier" aria-label="Modifier" @click="openEdit(@js(route('countries.update', $country)), @js(['name' => $country->name, 'code' => $country->code, 'currency' => $country->currency, 'description' => $country->description, 'is_active' => $country->is_active]))"><x-icon name="pencil" class="h-5 w-5" /></button>
                                         <form method="POST" action="{{ route('countries.toggle', $country) }}" @submit="if (!confirm(@js($country->is_active ? 'Désactiver ce pays ?' : 'Activer ce pays ?'))) $event.preventDefault()">

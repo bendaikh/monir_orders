@@ -11,7 +11,7 @@
         x-transition:leave="transform transition ease-in duration-300"
         x-transition:leave-start="translate-x-0 opacity-100"
         x-transition:leave-end="translate-x-full opacity-0"
-        class="fixed right-4 top-4 z-50 w-full max-w-sm rounded-2xl border-2 p-4 text-sm shadow-xl {{ $ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900' }}"
+        class="fixed right-4 top-4 z-50 w-full max-w-sm rounded-xl border p-4 text-sm shadow-2xl shadow-slate-900/15 backdrop-blur {{ $ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900' }}"
         role="status"
     >
         <div class="flex items-start justify-between gap-3">
