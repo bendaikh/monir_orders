@@ -36,7 +36,15 @@ class ServiceController extends Controller
             ->paginate($request->user()->rows_per_page)
             ->withQueryString();
 
-        return view('services.index', compact('country', 'services'));
+        $liveCounts = [];
+
+        foreach ($services as $service) {
+            $liveCounts[$service->id] = $service->sourceIntegration?->isReady()
+                ? self::liveTodayCounts($service)
+                : [null, 'Source non configurée'];
+        }
+
+        return view('services.index', compact('country', 'services', 'liveCounts'));
     }
 
     public function create(Country $country): View
@@ -121,16 +129,32 @@ class ServiceController extends Controller
      */
     public static function liveTodayCount(PartnerService $service): array
     {
+        [$counts, $error] = self::liveTodayCounts($service);
+
+        return [$counts['pending'] ?? null, $error];
+    }
+
+    /**
+     * @return array{0: array{today: int, pending: int}|null, 1: ?string} cached 60 s, one sheet read for both numbers
+     */
+    public static function liveTodayCounts(PartnerService $service): array
+    {
         $today = now()->startOfDay();
 
         try {
-            $count = \Illuminate\Support\Facades\Cache::remember(
+            $counts = \Illuminate\Support\Facades\Cache::remember(
                 self::todayCountCacheKey($service),
                 60,
-                fn () => app(\App\Services\Sheets\OrderImporter::class)->countForDate($service, $today),
+                fn () => app(\App\Services\Sheets\OrderImporter::class)->countsForDate($service, $today),
             );
 
-            return [(int) $count, null];
+            if (! is_array($counts)) { // value cached by the previous version (int)
+                \Illuminate\Support\Facades\Cache::forget(self::todayCountCacheKey($service));
+
+                return self::liveTodayCounts($service);
+            }
+
+            return [$counts, null];
         } catch (\Throwable $exception) {
             report($exception);
 

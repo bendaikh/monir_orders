@@ -28,9 +28,18 @@ class OrderImporter
      */
     public function countForDate(PartnerService $service, CarbonInterface $date): int
     {
+        return $this->countsForDate($service, $date)['pending'];
+    }
+
+    /**
+     * @return array{today: int, pending: int} today's rows in the source sheet, and how many of them are not pushed yet
+     */
+    public function countsForDate(PartnerService $service, CarbonInterface $date): array
+    {
         $service->load(['sourceIntegration', 'columnMappings', 'country']);
         [$rows, $index, $mapping] = $this->readSource($service);
         $count = 0;
+        $today = 0;
         $occurrences = [];
 
         // Rows already handled (sent, duplicate, rejected…) are not counted: only what a click would still push.
@@ -59,6 +68,8 @@ class OrderImporter
                 continue;
             }
 
+            $today++;
+
             // Same fingerprint as pull().
             $content = sha1(json_encode(array_map(fn ($cell) => trim((string) $cell), $row), JSON_UNESCAPED_UNICODE));
             $occurrences[$content] = ($occurrences[$content] ?? 0) + 1;
@@ -70,7 +81,7 @@ class OrderImporter
             $count++;
         }
 
-        return $count;
+        return ['today' => $today, 'pending' => $count];
     }
 
     public function import(PartnerService $service, ?User $user = null, string $type = 'manual', ?CarbonInterface $onlyDate = null): SyncLog
