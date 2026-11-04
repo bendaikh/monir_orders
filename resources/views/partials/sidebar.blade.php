@@ -37,20 +37,6 @@
                 </a>
             </div>
             <div>
-                <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Gestion des commandes</p>
-                <div class="space-y-1">
-                    <a href="{{ route('countries.orders.index', $country) }}" @click="sidebar = false" class="{{ request()->routeIs('countries.orders.*') ? $active : $link }}">
-                        <x-icon name="orders" /> Gestion des commandes
-                    </a>
-                    <a href="{{ route('countries.validation.index', $country) }}" @click="sidebar = false" class="{{ request()->routeIs('countries.validation.*') ? $active : $link }}">
-                        <x-icon name="check" /> Validation des commandes
-                    </a>
-                    <a href="{{ route('countries.history.index', $country) }}" @click="sidebar = false" class="{{ request()->routeIs('countries.history.*') ? $active : $link }}">
-                        <x-icon name="refresh" /> Historique des commandes
-                    </a>
-                </div>
-            </div>
-            <div>
                 <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Services</p>
                 <div class="space-y-1">
                     <a href="{{ route('countries.services.index', $country) }}" @click="sidebar = false" class="{{ request()->routeIs('countries.services.*') ? $active : $link }}">
