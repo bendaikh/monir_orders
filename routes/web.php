@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/pays/{country}', [CountryController::class, 'update'])->name('countries.update');
     Route::patch('/pays/{country}/statut', [CountryController::class, 'toggle'])->name('countries.toggle');
     Route::get('/pays/{country}', [CountryController::class, 'show'])->name('countries.show');
+    Route::delete('/pays/{country}', [\App\Http\Controllers\DeleteController::class, 'country'])->name('countries.destroy');
 
     Route::prefix('pays/{country}')->scopeBindings()->name('countries.')->group(function () {
         Route::get('/tableau-de-bord', [CountryDashboardController::class, 'index'])->name('dashboard');
@@ -45,6 +46,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/commandes', [OrderController::class, 'index'])->name('orders.index');
         Route::get('/commandes/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::put('/commandes/{order}', [OrderController::class, 'update'])->name('orders.update');
+        Route::delete('/commandes/{order}', [\App\Http\Controllers\DeleteController::class, 'order'])->name('orders.destroy');
         Route::post('/commandes/{order}/reessayer', [ValidationController::class, 'retry'])->name('orders.retry');
 
         Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
@@ -60,6 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/services/{service}', [ServiceController::class, 'show'])->name('services.show');
         Route::get('/services/{service}/modifier', [ServiceController::class, 'edit'])->name('services.edit');
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
+        Route::delete('/services/{service}', [\App\Http\Controllers\DeleteController::class, 'service'])->name('services.destroy');
         Route::patch('/services/{service}/statut', [ServiceController::class, 'toggle'])->name('services.toggle');
         Route::post('/services/{service}/valider-tout', [ValidationController::class, 'validateAll'])->name('services.validate-all');
         Route::get('/services/{service}/envoi-statut', [ValidationController::class, 'pushStatus'])->name('services.push-status');

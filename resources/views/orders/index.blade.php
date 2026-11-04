@@ -59,6 +59,13 @@
                             <td class="px-4 py-3"><x-status-badge :status="$order->displayStatus()" /></td>
                             <td class="px-4 py-3">
                                 <a class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700" title="Consulter" aria-label="Consulter" href="{{ route('countries.orders.show', [$orderCountry, $order]) }}"><x-icon name="eye" class="h-5 w-5" /></a>
+                                @can('delete', $order)
+                                    <form method="POST" action="{{ route('countries.orders.destroy', [$orderCountry, $order]) }}" class="inline" onsubmit="return confirm(@js('Supprimer la commande '.$order->reference.' ? Elle n\'a pas été envoyée.'))">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-50 text-red-600" title="Supprimer" aria-label="Supprimer"><x-icon name="trash" class="h-5 w-5" /></button>
+                                    </form>
+                                @endcan
                             </td>
                         </tr>
                     @empty

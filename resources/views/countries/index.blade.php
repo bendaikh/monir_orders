@@ -75,6 +75,11 @@
                                             @method('PATCH')
                                             <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 {{ $country->is_active ? 'text-slate-600' : 'text-green-700' }} hover:text-slate-900" title="{{ $country->is_active ? 'Désactiver' : 'Activer' }}" aria-label="{{ $country->is_active ? 'Désactiver' : 'Activer' }}"><x-icon name="power" class="h-5 w-5" /></button>
                                         </form>
+                                        <form method="POST" action="{{ route('countries.destroy', $country) }}" class="inline" onsubmit="return confirm(@js('Supprimer le pays '.$country->name.' ?'))">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-50 text-red-600" title="Supprimer" aria-label="Supprimer"><x-icon name="trash" class="h-5 w-5" /></button>
+                                    </form>
                                     </div>
                                 </td>
                             </tr>

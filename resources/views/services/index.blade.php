@@ -72,6 +72,11 @@
                                         @method('PATCH')
                                         <button class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 {{ $service->is_active ? 'text-slate-600' : 'text-green-700' }}" type="submit" title="{{ $service->is_active ? 'Désactiver' : 'Activer' }}" aria-label="{{ $service->is_active ? 'Désactiver' : 'Activer' }}"><x-icon name="power" class="h-5 w-5" /></button>
                                     </form>
+                                    <form method="POST" action="{{ route('countries.services.destroy', [$country, $service]) }}" class="inline" onsubmit="return confirm(@js('Supprimer le service '.$service->name.' ? (récupérable par l\'administrateur)'))">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-50 text-red-600" title="Supprimer" aria-label="Supprimer"><x-icon name="trash" class="h-5 w-5" /></button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

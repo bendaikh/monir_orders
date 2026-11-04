@@ -175,6 +175,48 @@ class DedupValidateTest extends TestCase
         $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))->assertDontSee('Envoyées avec succès');
     }
 
+    public function test_delete_rules_are_safe_and_soft(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(20, 0));
+        [$user, $country, $service, $gateway] = $this->setUpCodpayLike([
+            ['02/11/2026 08:00:00', 'p', 'Ana', '0711111111', 'A', '', '1', '10.000', ''],
+            ['02/11/2026 09:00:00', 'p', 'Bob', '0722222222', 'B', '', '1', '10.000', ''],
+        ]);
+        $this->actingAs($user)->post(route('countries.services.import', [$country, $service]));
+        $sent = Order::query()->where('customer_name', 'Ana')->sole();
+        $sent->update(['transfer_status' => TransferStatus::Transferred]);
+        $pending = Order::query()->where('customer_name', 'Bob')->sole();
+
+        // Country with services and service with orders/integrations are blocked.
+        $this->actingAs($user)->delete(route('countries.destroy', $country))
+            ->assertSessionHas('error', fn ($m) => str_contains($m, 'supprimez d\'abord'));
+        $this->actingAs($user)->delete(route('countries.services.destroy', [$country, $service]))
+            ->assertSessionHas('error', fn ($m) => str_contains($m, 'commande(s)') && str_contains($m, 'intégration(s)'));
+        $this->assertNotSoftDeleted($country);
+        $this->assertNotSoftDeleted($service);
+
+        // A transferred order is blocked; a not-sent one is soft-deleted and never re-imported.
+        $this->actingAs($user)->delete(route('countries.orders.destroy', [$country, $sent]))->assertSessionHas('error');
+        $this->assertNotSoftDeleted($sent);
+        $this->actingAs($user)->get(route('countries.orders.index', $country))->assertOk()->assertSee('Supprimer');
+        $this->actingAs($user)->delete(route('countries.orders.destroy', [$country, $pending]))->assertSessionHas('success');
+        $this->assertSoftDeleted($pending);
+        $this->actingAs($user)->post(route('countries.services.import', [$country, $service]));
+        $this->assertSame(1, Order::query()->count());
+        $this->assertSame(2, Order::withTrashed()->count());
+
+        // Empty service and empty country can be removed (soft).
+        $empty = $country->services()->create(['name' => 'Vide', 'is_active' => true]);
+        $this->actingAs($user)->delete(route('countries.services.destroy', [$country, $empty]))->assertSessionHas('success');
+        $this->assertSoftDeleted($empty);
+        $other = \App\Models\Country::query()->create(['name' => 'Testland', 'code' => 'TL', 'currency' => 'USD', 'is_active' => true]);
+        $this->actingAs($user)->delete(route('countries.destroy', $other))->assertSessionHas('success');
+        $this->assertSoftDeleted($other);
+
+        $this->post('/deconnexion');
+        $this->delete(route('countries.destroy', $country))->assertRedirect(route('login'));
+    }
+
     public function test_show_page_handles_google_errors(): void
     {
         [$user, $country, $service] = $this->setUpCodpayLike([]);

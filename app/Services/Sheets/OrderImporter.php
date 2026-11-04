@@ -44,7 +44,7 @@ class OrderImporter
 
         // Rows already handled (sent, duplicate, rejected…) are not counted: only what a click would still push.
         // Pending orders and, for API services, failed sends without a parcel code are still to push.
-        $handled = Order::query()
+        $handled = Order::withTrashed()
             ->where('service_id', $service->id)
             ->whereNotNull('source_hash')
             ->where('validation_status', '!=', ValidationStatus::Pending->value)
@@ -233,7 +233,7 @@ class OrderImporter
             $occurrences[$content] = ($occurrences[$content] ?? 0) + 1;
             $hash = hash('sha256', $content.'#'.$occurrences[$content]);
 
-            if (Order::query()->where('service_id', $service->id)->where('source_hash', $hash)->exists()) {
+            if (Order::withTrashed()->where('service_id', $service->id)->where('source_hash', $hash)->exists()) {
                 $skipped++;
 
                 continue;
@@ -304,9 +304,9 @@ class OrderImporter
 
         if ($reference === '') {
             $reference = $service->nextReference();
-        } elseif (Order::query()->where('service_id', $service->id)->where('reference', $reference)->exists()) {
+        } elseif (Order::withTrashed()->where('service_id', $service->id)->where('reference', $reference)->exists()) {
             // Same reference but a different source row: keep it visible as a duplicate.
-            $original ??= Order::query()->where('service_id', $service->id)->where('reference', $reference)->first();
+            $original ??= Order::withTrashed()->where('service_id', $service->id)->where('reference', $reference)->first();
             $reference = $reference.'-L'.$line;
         }
 
