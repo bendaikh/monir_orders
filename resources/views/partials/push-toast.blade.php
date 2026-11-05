@@ -22,7 +22,7 @@
             <button type="button" class="text-lg leading-none opacity-60 hover:opacity-100" @click="open = false" aria-label="Fermer">&times;</button>
         </div>
         <dl class="mt-3 grid grid-cols-2 gap-2">
-            <div><dt class="text-xs opacity-70">Commandes du jour</dt><dd class="text-lg font-bold">{{ $report['today_count'] ?? $report['total'] ?? 0 }}</dd></div>
+            <div><dt class="text-xs opacity-70">Commandes traitées</dt><dd class="text-lg font-bold">{{ $report['today_count'] ?? $report['total'] ?? 0 }}</dd></div>
             <div><dt class="text-xs opacity-70">Envoyées avec succès</dt><dd class="text-lg font-bold">{{ $report['transferred'] ?? 0 }}</dd></div>
             <div><dt class="text-xs opacity-70">Doublons supprimés</dt><dd class="text-lg font-bold">{{ $report['duplicates'] ?? 0 }}</dd></div>
             <div><dt class="text-xs opacity-70">Échecs</dt><dd class="text-lg font-bold">{{ $report['failed'] ?? 0 }}</dd></div>

@@ -14,7 +14,7 @@
             <p class="mt-2 max-w-2xl text-sm text-slate-500">{{ $service->description }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <form method="POST" action="{{ route('countries.services.validate-all', [$country, $service]) }}" @submit="if (!confirm('Valider et envoyer les {{ $todayCount ?? '' }} commande(s) du jour de {{ addslashes($service->name) }} ? Les doublons seront supprimés et non envoyés.')) $event.preventDefault()">
+            <form method="POST" action="{{ route('countries.services.validate-all', [$country, $service]) }}" @submit="if (!confirm('Valider et envoyer les {{ $todayCount ?? '' }} commande(s) en attente de {{ addslashes($service->name) }} ? Les doublons seront supprimés et non envoyés.')) $event.preventDefault()">
                 @csrf
                 <x-button :disabled="$todayCount === 0">Valider toutes les commandes en attente ({{ $todayCount ?? '?' }})</x-button>
                 <p class="mt-1 text-xs text-slate-500">
@@ -75,7 +75,7 @@
                 <div>
                     <p class="mt-1" x-text="run.message || run.error || 'Envoi interrompu (aucune réponse du serveur depuis plus de 30 minutes).'"></p>
                     <div class="mt-2 flex flex-wrap gap-4 font-medium">
-                        <span>Commandes du jour : <b x-text="run.today_count ?? run.total"></b></span>
+                        <span>Commandes traitées : <b x-text="run.today_count ?? run.total"></b></span>
                         <span>Envoyées : <b x-text="run.transferred"></b></span>
                         <span>Doublons : <b x-text="run.duplicates"></b></span>
                         <span>Échecs : <b x-text="run.failed"></b></span>

@@ -49,7 +49,7 @@ class SyncLog extends Model
         return match ($this->type) {
             'manual' => 'Import manuel',
             'scheduled' => 'Import planifié',
-            'validate-all' => 'Validation du jour',
+            'validate-all' => 'Valider et push',
             'connection_test' => 'Test de connexion',
             'test_send' => 'Test d\'envoi',
             'transfer' => 'Transfert',

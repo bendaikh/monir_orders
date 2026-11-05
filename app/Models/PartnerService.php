@@ -170,4 +170,14 @@ class PartnerService extends Model
             return $this->reference_prefix.$next;
         });
     }
+
+    /**
+     * First day whose source rows can be pushed: the day the service was added to the app.
+     * Older leads already in the sheet are ignored; anything from that day on that was never
+     * pushed stays "en attente" until a click on « Valider et push », whatever the day.
+     */
+    public function pushSince(): \Carbon\CarbonInterface
+    {
+        return ($this->created_at ?? now())->copy()->timezone(config('app.timezone'))->startOfDay();
+    }
 }

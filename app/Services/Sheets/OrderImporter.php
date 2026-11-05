@@ -166,7 +166,8 @@ class OrderImporter
     {
         $orderedAt = OrderNormalizer::date($values['ordered_at'] ?? null, $service->date_format);
 
-        return $orderedAt !== null && $orderedAt->format('Y-m-d') === $date->format('Y-m-d');
+        // On or after $date: unpushed rows from previous days stay waiting.
+        return $orderedAt !== null && $orderedAt->format('Y-m-d') >= $date->format('Y-m-d');
     }
 
     /**

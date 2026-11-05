@@ -123,7 +123,7 @@ class ServiceController extends Controller
     }
 
     /**
-     * Today's orders (Africa/Casablanca) counted live from the source sheet, cached ~60 s.
+     * Orders waiting to be pushed (any day since the service was added) counted live from the source sheet, cached ~60 s.
      *
      * @return array{0: int|null, 1: string|null}
      */
@@ -139,7 +139,7 @@ class ServiceController extends Controller
      */
     public static function liveTodayCounts(PartnerService $service): array
     {
-        $today = now()->startOfDay();
+        $today = $service->pushSince();
 
         try {
             $counts = \Illuminate\Support\Facades\Cache::remember(
@@ -166,6 +166,6 @@ class ServiceController extends Controller
 
     public static function todayCountCacheKey(PartnerService $service): string
     {
-        return 'service-today-count-'.$service->id.'-'.now()->format('Y-m-d');
+        return 'service-waiting-count-'.$service->id;
     }
 }
