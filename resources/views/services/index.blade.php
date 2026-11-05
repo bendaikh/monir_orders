@@ -34,8 +34,7 @@
                         <th class="px-4 py-3 font-medium">Service</th>
                         <th class="hidden px-4 py-3 font-medium lg:table-cell">Source</th>
                         <th class="hidden px-4 py-3 font-medium lg:table-cell">Destination</th>
-                        <th class="px-4 py-3 font-medium" title="Commandes datées d'aujourd'hui dans la feuille source">Commandes du jour</th>
-                        <th class="px-4 py-3 font-medium" title="Commandes du jour pas encore envoyées (même nombre que le bouton Valider)">En attente d'envoi</th>
+                        <th class="px-4 py-3 font-medium" title="Commandes pas encore envoyées, tous jours confondus (même nombre que le bouton Valider)">En attente d'envoi</th>
                         <th class="px-4 py-3 font-medium" title="Toutes les commandes enregistrées pour ce service">Total enregistré</th>
                         <th class="px-4 py-3 font-medium">Statut</th>
                         <th class="hidden px-4 py-3 font-medium md:table-cell">Création</th>
@@ -58,7 +57,6 @@
                                 <x-destination-status :service="$service" />
                             </td>
                             @php [$live, $liveError] = $liveCounts[$service->id] ?? [null, null]; @endphp
-                            <td class="px-4 py-3 font-medium">@if ($live){{ $live['today'] }}@else<span class="text-slate-400" title="{{ $liveError }}">—</span>@endif</td>
                             <td class="px-4 py-3">@if ($live)<span class="{{ $live['pending'] > 0 ? 'font-semibold text-orange-700' : 'text-green-700' }}">{{ $live['pending'] }}</span>@else<span class="text-slate-400" title="{{ $liveError }}">—</span>@endif</td>
                             <td class="px-4 py-3 text-slate-500">{{ $service->orders_count }}</td>
                             <td class="px-4 py-3"><x-badge :tone="$service->is_active ? 'green' : 'slate'">{{ $service->is_active ? 'Actif' : 'Inactif' }}</x-badge></td>

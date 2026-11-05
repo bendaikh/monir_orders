@@ -72,7 +72,7 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
 
         try {
             @set_time_limit(0);
-            $today = now()->startOfDay();
+            $today = $service->pushSince(); // all unpushed orders since the service was added, not only today's
             $lastId = (int) Order::query()->max('id');
 
             $log = $importer->import($service, $user, 'validate-all', $today);
@@ -90,7 +90,7 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
                 ->count();
 
             $pending = $service->orders()
-                ->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])
+                ->where('ordered_at', '>=', $today)
                 ->where(function ($query) use ($service) {
                     $query->where('validation_status', ValidationStatus::Pending->value);
 
@@ -105,9 +105,9 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
 
             if ($pending->isEmpty()) {
                 $run->duplicates = $importDuplicates;
-                $run->today_count = $service->orders()->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])->count();
+                $run->today_count = 0;
                 $this->finish($run, 'success', sprintf(
-                    'Aucune nouvelle commande du jour à envoyer pour %s (%d doublon(s) supprimé(s)).',
+                    'Aucune commande en attente à envoyer pour %s (%d doublon(s) supprimé(s)).',
                     $service->name,
                     $importDuplicates,
                 ));
@@ -142,7 +142,7 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
             $marked = app(SourceRowMarker::class)->markLatest($service->fresh('sourceIntegration'), $pending->map->fresh());
 
             $message = sprintf(
-                '%d commande(s) du jour validée(s) : %d transférée(s), %d doublon(s) supprimé(s) (non envoyés), %d échec(s).',
+                '%d commande(s) en attente validée(s) : %d transférée(s), %d doublon(s) supprimé(s) (non envoyés), %d échec(s).',
                 $pending->count(),
                 $stats['transferred'],
                 $importDuplicates + $stats['duplicates'],
@@ -160,7 +160,7 @@ class ValidateAllServiceOrdersJob implements ShouldQueue, ShouldBeUnique
 
             $run->fill([
                 'failures' => $failures,
-                'today_count' => $service->orders()->whereBetween('ordered_at', [$today, $today->copy()->endOfDay()])->count(),
+                'today_count' => $pending->count(),
                 'total' => $pending->count(),
                 'transferred' => $stats['transferred'],
                 'duplicates' => $importDuplicates + $stats['duplicates'],
