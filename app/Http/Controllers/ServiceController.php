@@ -6,6 +6,7 @@ use App\Enums\ValidationStatus;
 use App\Http\Requests\ServiceRequest;
 use App\Models\Country;
 use App\Models\PartnerService;
+use App\Models\PushRun;
 use App\Services\Sheets\PartnerServiceProvisioner;
 use App\Services\Sheets\SheetConfigurator;
 use App\Support\OrderFields;
@@ -44,7 +45,14 @@ class ServiceController extends Controller
                 : [null, 'Source non configurée'];
         }
 
-        return view('services.index', compact('country', 'services', 'liveCounts'));
+        $activeRuns = [];
+
+        foreach ($services as $service) {
+            $run = PushRun::query()->where('service_id', $service->id)->latest('id')->first();
+            $activeRuns[$service->id] = $run && $run->isActive() ? $run->toPayload() : null;
+        }
+
+        return view('services.index', compact('country', 'services', 'liveCounts', 'activeRuns'));
     }
 
     public function create(Country $country): View
