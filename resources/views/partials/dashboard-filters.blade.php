@@ -1,27 +1,5 @@
 <section id="dashboard-filters" aria-label="Filtres du tableau de bord" class="w-full rounded-xl border border-slate-200/80 bg-white p-3 shadow-soft sm:p-4 xl:w-[36rem]">
-    <form method="GET" action="{{ route('dashboard') }}" autocomplete="off">
-        @if ($filters->period)
-            <input type="hidden" name="period" value="{{ $filters->period }}">
-        @endif
-        @if ($filters->period === \App\Services\Orders\DashboardFilters::CUSTOM)
-            @if ($filters->from)
-                <input type="hidden" name="date_from" value="{{ $filters->from->toDateString() }}">
-            @endif
-            @if ($filters->to)
-                <input type="hidden" name="date_to" value="{{ $filters->to->toDateString() }}">
-            @endif
-        @endif
-
-        <x-select label="Service" name="service_id" onchange="this.form.submit()">
-            <option value="" @selected($filters->serviceId() === null)>Tous les services</option>
-            @foreach ($services as $service)
-                <option value="{{ $service->id }}" @selected($filters->serviceId() === $service->id)>{{ trim(($service->country->flag ?? '').' '.$service->name.($service->country ? ' — '.$service->country->name : '')) }}{{ $service->is_active ? '' : ' (inactif)' }}</option>
-            @endforeach
-        </x-select>
-        <button type="submit" class="sr-only">Appliquer le service</button>
-    </form>
-
-    <div class="mt-3">
+    <div>
         <p class="mb-1.5 text-sm font-medium text-slate-700">Période</p>
         <div class="flex flex-wrap gap-1.5" role="group" aria-label="Période">
             @foreach (\App\Services\Orders\DashboardFilters::periodOptions() as $value => $label)
