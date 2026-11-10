@@ -10,11 +10,22 @@
         <x-demo-banner />
     @endif
 
-    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-sm text-slate-500">Synthèse de tous les pays, services et commandes.</p>
-        <div class="flex flex-wrap gap-2">
-            <x-button href="{{ route('countries.index') }}" variant="secondary">Voir les pays</x-button>
-            <x-button href="{{ route('orders.global') }}">Voir les commandes</x-button>
+    <div class="mb-6 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div class="order-2 min-w-0 xl:order-1">
+            <p class="text-sm text-slate-500">
+                @if ($filters->isDefault())
+                    Synthèse de tous les pays, services et commandes.
+                @else
+                    {{ $filters->summaryLine() }}
+                @endif
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <x-button href="{{ route('countries.index') }}" variant="secondary">Voir les pays</x-button>
+                <x-button href="{{ route('orders.global') }}">Voir les commandes</x-button>
+            </div>
+        </div>
+        <div class="order-1 w-full xl:order-2 xl:w-[36rem] xl:shrink-0">
+            @include('partials.dashboard-filters')
         </div>
     </div>
 
@@ -83,7 +94,7 @@
     </div>
 
     <div class="mt-6 grid gap-4 xl:grid-cols-2">
-        <x-card title="Commandes récentes" description="Dernières commandes reçues, tous pays confondus.">
+        <x-card title="Commandes récentes" :description="$filters->recentOrdersDescription()">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="text-left text-xs uppercase tracking-wide text-slate-500">
