@@ -91,6 +91,46 @@ class DashboardFilterTest extends TestCase
         $this->assertTrue($response->viewData('hasDemo'));
     }
 
+    public function test_service_selector_is_in_the_header_and_only_on_the_dashboard(): void
+    {
+        [$ci, $lb] = $this->catalog();
+        $this->seedOrders($ci, $lb);
+
+        $dashboard = $this->getDashboard([
+            'service_id' => $ci->id,
+            'period' => 'custom',
+            'date_from' => '2026-11-01',
+            'date_to' => '2026-11-10',
+        ]);
+
+        $dashboard->assertOk();
+        $html = $dashboard->getContent();
+        $selectAt = strpos($html, 'id="dashboard-service"');
+        $periodAt = strpos($html, '>Période<');
+
+        $this->assertNotFalse($selectAt);
+        $this->assertNotFalse($periodAt);
+        $this->assertLessThan($periodAt, $selectAt);
+        $this->assertSame(1, substr_count($html, '<select'));
+        $this->assertStringNotContainsString('font-medium text-slate-700">Service', $html);
+        $dashboard->assertSee('id="dashboard-service-form"', false);
+        $dashboard->assertSee('name="period" value="custom"', false);
+        $dashboard->assertSee('name="date_from" value="2026-11-01"', false);
+        $dashboard->assertSee('name="date_to" value="2026-11-10"', false);
+        $dashboard->assertSee('value="'.$ci->id.'" selected', false);
+        $dashboard->assertSee('Tous les services');
+
+        $this->actingAs($this->user)
+            ->get(route('countries.index'))
+            ->assertOk()
+            ->assertDontSee('id="dashboard-service"', false);
+
+        $this->actingAs($this->user)
+            ->get(route('countries.dashboard', 'CI'))
+            ->assertOk()
+            ->assertDontSee('id="dashboard-service"', false);
+    }
+
     public function test_service_filter_limits_every_card_table_and_chart(): void
     {
         [$ci, $lb] = $this->catalog();

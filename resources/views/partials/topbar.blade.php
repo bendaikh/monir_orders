@@ -1,6 +1,6 @@
-<header class="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-200/70 bg-white/75 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
-    <div class="flex min-w-0 items-center gap-3">
-        <button type="button" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" @click="sidebar = true" aria-label="Ouvrir le menu">
+<header class="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b border-slate-200/70 bg-white/75 px-4 backdrop-blur-xl sm:gap-4 sm:px-6 lg:px-8">
+    <div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <button type="button" class="shrink-0 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" @click="sidebar = true" aria-label="Ouvrir le menu">
             <x-icon name="menu" />
         </button>
         <div class="min-w-0">
@@ -11,8 +11,12 @@
         </div>
     </div>
 
-    <div class="flex items-center gap-2">
-        <div class="relative">
+    <div class="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        @if (request()->routeIs('dashboard') && isset($filters, $services))
+            @include('partials.dashboard-service-select')
+        @endif
+
+        <div class="relative shrink-0">
             <button type="button" class="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" @click="notifications = !notifications; profile = false" aria-label="Notifications">
                 <x-icon name="bell" />
                 @if (($notificationItems ?? collect())->isNotEmpty())
@@ -33,7 +37,7 @@
             </div>
         </div>
 
-        <div class="relative">
+        <div class="relative shrink-0">
             <button type="button" class="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 hover:bg-slate-100" @click="profile = !profile; notifications = false">
                 <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-semibold text-white ring-2 ring-white shadow">
                     {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
