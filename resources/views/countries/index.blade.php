@@ -68,6 +68,7 @@
                                 <td class="hidden px-4 py-3 lg:table-cell">{{ $country->created_at->translatedFormat('d M Y') }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-nowrap items-center gap-1">
+                                        @include('partials.country-services-menu')
                                         <a href="{{ route('countries.dashboard', $country) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200" title="Espace" aria-label="Espace"><x-icon name="open" class="h-5 w-5" /></a>
                                         <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-blue-700 hover:text-blue-800" title="Modifier" aria-label="Modifier" @click="openEdit(@js(route('countries.update', $country)), @js(['name' => $country->name, 'code' => $country->code, 'currency' => $country->currency, 'description' => $country->description, 'is_active' => $country->is_active]))"><x-icon name="pencil" class="h-5 w-5" /></button>
                                         <form method="POST" action="{{ route('countries.toggle', $country) }}" @submit="if (!confirm(@js($country->is_active ? 'Désactiver ce pays ?' : 'Activer ce pays ?'))) $event.preventDefault()">

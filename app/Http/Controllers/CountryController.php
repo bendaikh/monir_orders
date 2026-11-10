@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CountryRequest;
 use App\Models\Country;
+use App\Models\PushRun;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,9 +30,40 @@ class CountryController extends Controller
             ->paginate($request->user()->rows_per_page)
             ->withQueryString();
 
+        $countries->getCollection()->load([
+            'services' => fn ($query) => $query
+                ->with(['sourceIntegration', 'destinationIntegration'])
+                ->orderBy('name'),
+        ]);
+
+        $liveCounts = [];
+        $activeRuns = [];
+        $serviceIds = $countries->getCollection()->flatMap(fn (Country $country) => $country->services->pluck('id'));
+        $latestRuns = $serviceIds->isEmpty()
+            ? collect()
+            : PushRun::query()
+                ->whereIn('service_id', $serviceIds)
+                ->orderByDesc('id')
+                ->get()
+                ->unique('service_id')
+                ->keyBy('service_id');
+
+        foreach ($countries as $country) {
+            foreach ($country->services as $service) {
+                $liveCounts[$service->id] = $service->sourceIntegration?->isReady()
+                    ? ServiceController::liveTodayCounts($service)
+                    : [null, 'Source non configurée'];
+
+                $run = $latestRuns->get($service->id);
+                $activeRuns[$service->id] = $run && $run->isActive() ? $run->toPayload() : null;
+            }
+        }
+
         return view('countries.index', [
             'countries' => $countries,
             'defaultCurrency' => Setting::current()->default_currency ?: 'MAD',
+            'liveCounts' => $liveCounts,
+            'activeRuns' => $activeRuns,
         ]);
     }
 

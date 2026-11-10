@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Support\OrderNormalizer;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
 class PartnerService extends Model
@@ -88,6 +89,11 @@ class PartnerService extends Model
     public function usesApi(): bool
     {
         return $this->destination_type === 'api';
+    }
+
+    public function destinationTypeLabel(): string
+    {
+        return $this->usesApi() ? 'Système (API) — Simon Express' : 'Google Sheet';
     }
 
     public function hasApiCredentials(): bool
@@ -176,7 +182,7 @@ class PartnerService extends Model
      * Older leads already in the sheet are ignored; anything from that day on that was never
      * pushed stays "en attente" until a click on « Valider et push », whatever the day.
      */
-    public function pushSince(): \Carbon\CarbonInterface
+    public function pushSince(): CarbonInterface
     {
         return ($this->created_at ?? now())->copy()->timezone(config('app.timezone'))->startOfDay();
     }
