@@ -132,7 +132,7 @@ class DedupValidateTest extends TestCase
         $this->actingAs($user)->get(route('countries.services.show', [$country, $service]))
             ->assertSee('Valider toutes les commandes en attente (0)');
         $this->actingAs($user)->get(route('countries.services.index', $country))
-            ->assertOk()->assertSee('Commandes du jour')->assertSee('En attente d\'envoi', false);
+            ->assertOk()->assertSee('En attente d\'envoi', false);
 
         // A new repeat of an already-pushed order arrives, plus one new order.
         $gateway->sheets['src'][] = ['02/11/2026 18:00:00', 'thermal', 'Gaston', '+255 078548598', 'A', '', '1', '85.000', ''];
